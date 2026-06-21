@@ -6,6 +6,37 @@ Agentic LLM applications are non-deterministic, multi-step, and tool-using — t
 
 ---
 
+## 📖 Table of Contents
+
+* [Why You Need One](#why-you-need-one)
+* [1. What to Evaluate](#1-what-to-evaluate)
+* [2. Architecture Overview](#2-architecture-overview)
+  * [2.1 Eval Datasets](#21-eval-datasets)
+  * [2.2 Execution Engine](#22-execution-engine)
+  * [2.3 Judges / Scorers](#23-judges--scorers)
+  * [2.4 Reporting](#24-reporting)
+* [3. Scoring Strategies](#3-scoring-strategies)
+  * [3.1 Deterministic Scorers (Fast, Cheap, Reliable)](#31-deterministic-scorers-fast-cheap-reliable)
+  * [3.2 LLM-as-Judge (Flexible, Handles Nuance)](#32-llm-as-judge-flexible-handles-nuance)
+  * [3.3 Groundedness / Hallucination Detection (Critical)](#33-groundedness--hallucination-detection-critical)
+  * [3.4 Human-in-the-Loop (Ground Truth, Expensive)](#34-human-in-the-loop-ground-truth-expensive)
+* [4. Eval Types](#4-eval-types)
+  * [4.1 Unit Evals](#41-unit-evals)
+  * [4.2 Integration Evals](#42-integration-evals)
+  * [4.3 End-to-End Evals](#43-end-to-end-evals)
+  * [4.4 Regression Evals](#44-regression-evals)
+* [5. Dataset Design Principles](#5-dataset-design-principles)
+  * [The 80/20 Rule for Eval Cases](#the-8020-rule-for-eval-cases)
+  * [Building Your First Dataset](#building-your-first-dataset)
+* [6. CI/CD Integration](#6-cicd-integration)
+  * [Key CI/CD Decisions](#key-cicd-decisions)
+* [7. Recommended Tech Stack](#7-recommended-tech-stack)
+* [8. Common Pitfalls](#8-common-pitfalls)
+* [9. Getting Started Checklist](#9-getting-started-checklist)
+* [10. Further Reading](#10-further-reading)
+
+---
+
 ## 1. What to Evaluate
 
 Agentic apps differ from simple prompt→response systems. You need to evaluate across multiple dimensions:

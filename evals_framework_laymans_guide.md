@@ -8,6 +8,27 @@ That is exactly what this project—the **Evals Framework**—does for Artificia
 
 ---
 
+## 📖 Table of Contents
+
+* [1. What is an AI "Agent"?](#1-what-is-an-ai-agent)
+* [2. The Problem: How Do We Know It Works?](#2-the-problem-how-do-we-know-it-works)
+* [3. The Core Architecture: The 4-Step Grading Process](#3-the-core-architecture-the-4-step-grading-process)
+  * [Step 1: The Practice Exams (Datasets)](#step-1-the-practice-exams-datasets)
+  * [Step 2: Taking the Test (The Runner)](#step-2-taking-the-test-the-runner)
+  * [Step 3: The Panel of Graders (The Scorers)](#step-3-the-panel-of-graders-the-scorers)
+    * [📐 A. The Rule-Followers (Deterministic Scorers)](#-a-the-rule-followers-deterministic-scorers)
+    * [💰 B. The Accountant (Cost & Latency Budget Scorer)](#-b-the-accountant-cost--latency-budget-scorer)
+    * [🧑‍🏫 C. The AI Teachers (LLM-as-Judge Scorers)](#-c-the-ai-teachers-llm-as-judge-scorers)
+    * [🎓 D. The Headmaster (Composite Scorer)](#-d-the-headmaster-composite-scorer)
+  * [Step 4: The Report Card](#step-4-the-report-card)
+* [4. A Full Real-World Example](#4-a-full-real-world-example)
+* [5. The Universal Adapter: Testing Different AIs](#5-the-universal-adapter-testing-different-ais)
+  * [The Built-in Example Agent](#the-built-in-example-agent)
+* [6. The Progress Tracker: Comparing Runs](#6-the-progress-tracker-comparing-runs)
+* [7. The Guard at the Gate: Automated CI/CD Testing](#7-the-guard-at-the-gate-automated-cicd-testing)
+
+---
+
 ## 1. What is an AI "Agent"?
 
 Most people are used to standard AI like ChatGPT: you ask a question, and it types back an answer. 
