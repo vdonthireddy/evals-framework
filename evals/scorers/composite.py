@@ -7,6 +7,7 @@ from evals.core.interfaces import AgentOutput, EvalCase, ScoreResult
 from evals.scorers.base import BaseScorer
 from evals.scorers.deterministic import (
     ContainsKeywordsScorer,
+    CostLatencyScorer,
     ExactMatchScorer,
     SafetyScorer,
     ToolArgumentScorer,
@@ -86,6 +87,7 @@ class CompositeScorer(BaseScorer):
             (SafetyScorer(), 1.0),
             (ExactMatchScorer(), 1.0),
             (ContainsKeywordsScorer(), 1.0),
+            (CostLatencyScorer(), 1.0),
         ])
 
     @classmethod
@@ -119,6 +121,7 @@ class CompositeScorer(BaseScorer):
             SafetyScorer(),
             ExactMatchScorer(),
             ContainsKeywordsScorer(),
+            CostLatencyScorer(),
         ]
         
         # Override thresholds to require perfect scores for regression tests

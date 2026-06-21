@@ -140,11 +140,16 @@ class EvalRunner:
         async def _run_once() -> EvalResult:
             self.adapter.reset()
             try:
-                # Add a timeout
-                output = await asyncio.wait_for(
-                    self.adapter.execute(case.input),
-                    timeout=self.config.timeout_seconds
-                )
+                if case.is_multi_turn:
+                    output = await asyncio.wait_for(
+                        self._run_multi_turn(case),
+                        timeout=self.config.timeout_seconds
+                    )
+                else:
+                    output = await asyncio.wait_for(
+                        self.adapter.execute(case.input),
+                        timeout=self.config.timeout_seconds
+                    )
                 score_result = await scorer.score(case, output)
                 return EvalResult(
                     case_id=case.id,
@@ -159,7 +164,6 @@ class EvalRunner:
                 raise
             except Exception as e:
                 logger.error(f"Error evaluating case {case.id}: {e}", exc_info=True)
-                # We can't return a proper output, so we create a failure result
                 from evals.core.interfaces import AgentOutput
                 empty_output = AgentOutput(
                     input=case.input, output="", steps=[], metadata={"error": str(e)}
@@ -186,6 +190,63 @@ class EvalRunner:
                     error_str2 = "TimeoutError" if isinstance(e2, asyncio.TimeoutError) else str(e2)
                     return self._build_error_result(case, error_str2)
             return self._build_error_result(case, error_str)
+
+    async def _run_multi_turn(self, case: EvalCase) -> 'AgentOutput':
+        """Execute a multi-turn conversation case."""
+        from evals.core.interfaces import AgentOutput, TraceStep
+        
+        all_steps: list[TraceStep] = []
+        combined_output_text = []
+        total_tokens = 0
+        total_latency = 0.0
+        
+        # We aggregate all expected tool calls across turns so scorers like 
+        # ToolSelectionScorer can see everything we expected the agent to do
+        aggregated_expected_tools = []
+        last_metadata = {}
+        
+        if not case.turns:
+            raise ValueError("Case is marked multi-turn but has no turns.")
+            
+        for turn_idx, turn in enumerate(case.turns):
+            # Execute turn
+            turn_output = await self.adapter.execute(turn.input)
+            
+            # Combine steps (adjusting step numbers so they increment globally)
+            base_step = len(all_steps)
+            for step in turn_output.steps:
+                step.step_number += base_step
+                all_steps.append(step)
+                
+            combined_output_text.append(f"Turn {turn_idx+1} Output: {turn_output.output}")
+            
+            # Accumulate metrics
+            if turn_output.total_tokens is not None:
+                total_tokens += turn_output.total_tokens
+            if turn_output.total_latency_ms is not None:
+                total_latency += turn_output.total_latency_ms
+                
+            # Aggregate expectations
+            if turn.expected_tool_calls:
+                aggregated_expected_tools.extend(turn.expected_tool_calls)
+                
+            last_metadata = turn_output.metadata
+            
+        # Update the case object temporarily so scorers see the aggregated expectations
+        case.expected_tool_calls = aggregated_expected_tools
+        # The final expected outcome should be checked against the final output
+        if case.turns[-1].expected_outcome:
+            case.expected_outcome = case.turns[-1].expected_outcome
+            
+        return AgentOutput(
+            input=case.input,  # Original first input
+            output="\\n".join(combined_output_text),
+            steps=all_steps,
+            total_steps=len(all_steps),
+            total_tokens=total_tokens if total_tokens > 0 else None,
+            total_latency_ms=total_latency if total_latency > 0 else None,
+            metadata=last_metadata
+        )
 
     def _build_error_result(self, case: EvalCase, error_msg: str) -> EvalResult:
         """Helper to build a failed result when the agent crashes or times out."""

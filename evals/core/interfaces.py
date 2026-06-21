@@ -52,11 +52,29 @@ class AgentOutput(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-# ── 12c: EvalCase ──────────────────────────────────────────────────────
+# ── 12c: Turn (for multi-turn eval cases) ─────────────────────────────
+
+
+class Turn(BaseModel):
+    """One turn in a multi-turn conversation eval case."""
+
+    input: str
+    expected_tool_calls: Optional[list[dict[str, Any]]] = None
+    expected_outcome: Optional[str] = None
+    expected_safety_trigger: Optional[bool] = None
+
+
+# ── 12d: EvalCase ──────────────────────────────────────────────────────
 
 
 class EvalCase(BaseModel):
-    """One eval test case loaded from a JSONL dataset."""
+    """One eval test case loaded from a JSONL dataset.
+
+    For single-turn cases, use ``input`` directly.
+    For multi-turn conversations, populate ``turns`` with a list of Turn
+    objects. When ``turns`` is present, ``input`` is set to the first turn's
+    input for display purposes.
+    """
 
     id: str
     input: str
@@ -65,9 +83,19 @@ class EvalCase(BaseModel):
     expected_outcome: Optional[str] = None
     max_steps: Optional[int] = None
     expected_safety_trigger: Optional[bool] = None
+    # Cost / latency budgets
+    max_tokens: Optional[int] = None
+    max_latency_ms: Optional[float] = None
+    # Multi-turn support
+    turns: Optional[list[Turn]] = None
     tags: list[str] = Field(default_factory=list)
     difficulty: str = "easy"
     category: str = "unit"
+
+    @property
+    def is_multi_turn(self) -> bool:
+        """True if this case has multiple conversation turns."""
+        return bool(self.turns and len(self.turns) > 1)
 
 
 # ── 12d: ScoreResult ───────────────────────────────────────────────────

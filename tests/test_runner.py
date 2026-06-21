@@ -83,3 +83,52 @@ async def test_runner_adapter_error(tmp_path):
     assert report.summary["error_count"] == 1
     assert "Mock adapter error" in report.results[0].error
     assert report.results[0].overall_passed is False
+
+
+@pytest.mark.asyncio
+async def test_runner_multi_turn():
+    from evals.core.interfaces import AgentOutput, TraceStep, Turn
+
+    class StatefulMockAdapter(AgentAdapter):
+        def __init__(self):
+            self.turn_count = 0
+            
+        def reset(self):
+            self.turn_count = 0
+            
+        def get_info(self):
+            return {"name": "stateful"}
+            
+        async def execute(self, input: str):
+            self.turn_count += 1
+            return AgentOutput(
+                input=input,
+                output=f"response {self.turn_count}",
+                steps=[TraceStep(step_number=1, action="test")],
+                total_tokens=10,
+                total_latency_ms=100.0
+            )
+
+    multi_turn_case = EvalCase(
+        id="multi_1",
+        input="ignore",
+        turns=[
+            Turn(input="turn 1"),
+            Turn(input="turn 2", expected_outcome="response 2"),
+        ]
+    )
+    
+    dataset = EvalDataset([multi_turn_case])
+    config = EvalConfig(presets=["regression"])
+    runner = EvalRunner(StatefulMockAdapter(), dataset, config)
+    
+    report = await runner.run()
+    
+    # We should have aggregated 2 steps and combined latencies/tokens
+    res = report.results[0]
+    out = res.agent_output
+    assert len(out.steps) == 2
+    assert out.total_tokens == 20
+    assert out.total_latency_ms == 200.0
+    assert "response 1" in out.output
+    assert "response 2" in out.output

@@ -318,3 +318,105 @@ class ContainsKeywordsScorer(BaseScorer):
             details={"keywords": list(keywords), "found": found},
             reasoning=f"Found {len(found)} out of {len(keywords)} keywords.",
         )
+
+
+class CostLatencyScorer(BaseScorer):
+    """Evaluates whether the agent stayed within token and latency budgets.
+    
+    Budgets can be set per-case via ``max_tokens`` and ``max_latency_ms``
+    on the EvalCase, or via the scorer's constructor defaults.
+    
+    Scoring:
+    - Under budget → 1.0
+    - Over budget, up to 2× → linearly decays from 1.0 to 0.0
+    - Over 2× budget → 0.0
+    """
+
+    DEFAULT_MAX_TOKENS = 5000
+    DEFAULT_MAX_LATENCY_MS = 30_000.0  # 30 seconds
+
+    def __init__(
+        self,
+        default_max_tokens: int = DEFAULT_MAX_TOKENS,
+        default_max_latency_ms: float = DEFAULT_MAX_LATENCY_MS,
+    ) -> None:
+        super().__init__()
+        self._threshold = 0.6
+        self._default_max_tokens = default_max_tokens
+        self._default_max_latency_ms = default_max_latency_ms
+
+    @property
+    def name(self) -> str:
+        return "cost_latency"
+
+    @property
+    def description(self) -> str:
+        return "Checks if the agent stayed within token and latency budgets"
+
+    @staticmethod
+    def _budget_score(actual: float, budget: float) -> float:
+        """Score a single metric against its budget.
+        
+        1.0 if at or under budget, linear decay to 0.0 at 2× budget.
+        """
+        if actual <= budget:
+            return 1.0
+        elif actual >= budget * 2:
+            return 0.0
+        else:
+            # Linear decay: at budget → 1.0, at 2×budget → 0.0
+            return 1.0 - (actual - budget) / budget
+
+    async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
+        token_budget = case.max_tokens or self._default_max_tokens
+        latency_budget = case.max_latency_ms or self._default_max_latency_ms
+
+        scores = []
+        details: dict[str, Any] = {}
+
+        # Token scoring
+        if output.total_tokens is not None:
+            token_score = self._budget_score(output.total_tokens, token_budget)
+            scores.append(token_score)
+            details["tokens"] = {
+                "actual": output.total_tokens,
+                "budget": token_budget,
+                "score": round(token_score, 3),
+            }
+
+        # Latency scoring
+        if output.total_latency_ms is not None:
+            latency_score = self._budget_score(output.total_latency_ms, latency_budget)
+            scores.append(latency_score)
+            details["latency_ms"] = {
+                "actual": round(output.total_latency_ms, 1),
+                "budget": latency_budget,
+                "score": round(latency_score, 3),
+            }
+
+        if not scores:
+            # No cost/latency data available — pass by default
+            return ScoreResult(
+                scorer_name=self.name,
+                score=1.0,
+                passed=True,
+                threshold=self.threshold,
+                reasoning="No token or latency data reported by agent.",
+            )
+
+        final_score = sum(scores) / len(scores)
+
+        parts = []
+        if "tokens" in details:
+            parts.append(f"tokens: {details['tokens']['actual']}/{token_budget}")
+        if "latency_ms" in details:
+            parts.append(f"latency: {details['latency_ms']['actual']}ms/{latency_budget}ms")
+
+        return ScoreResult(
+            scorer_name=self.name,
+            score=final_score,
+            passed=final_score >= self.threshold,
+            threshold=self.threshold,
+            details=details,
+            reasoning=f"Budget check — {', '.join(parts)}.",
+        )
