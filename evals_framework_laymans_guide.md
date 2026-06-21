@@ -159,9 +159,17 @@ AI isn't free—every time it "thinks" or calls external models, it costs money 
 #### 🧑‍🏫 C. The AI Teachers (LLM-as-Judge Scorers)
 Sometimes, rules aren't enough. If the AI writes a polite, custom email, a computer rule can't grade its tone. We use a second, stricter AI to act as a teacher:
 * **The Quality Judge:** Reads the agent's work and grades it from 1 to 5 on dimensions like **Correctness**, **Helpfulness**, **Efficiency**, and **Safety**.
+  * **Example:**
+    * **Task:** *"Write a polite email to a client explaining why their package is delayed."*
+    * **Bad Response (Grade 2/5):** *"Sorry, package delayed. Weather. Will arrive next week."* (It is technically correct but extremely blunt, impolite, and unhelpful).
+    * **Good Response (Grade 5/5):** *"Dear Valued Customer, I am writing to sincerely apologize for the delay..."* (Highly professional, polite, well-formatted, and helpful).
   > [!TIP]
   > To keep the grading fair, the framework recommends using a different AI model family for the Judge than the one taking the test. For example, if GPT-4 takes the test, Gemini acts as the Judge. This prevents the AI from grading its own homework with a friendly bias!
 * **The Fact-Checker (Groundedness Scorer):** This is the ultimate detector of lies (hallucinations). It compares the AI's final answer *only* against the raw data it retrieved from its tools. If the AI claims a fact that wasn't in its tool results, the Fact-Checker flags it as a hallucination.
+  * **Example:**
+    * **Evidence (Tool Result):** *"The company policy allows for 15 days of paid time off per year."*
+    * **AI Output:** *"You get 15 days of paid vacation per year. In addition, you get unlimited sick leave."*
+    * **Fact-Checker Grade: FAIL (1/5)** because the "unlimited sick leave" claim is *not* supported by the retrieved evidence. Even if it is true in the real world, the AI wasn't given that evidence in this task—meaning it made it up.
 
 #### 🎓 D. The Headmaster (Composite Scorer)
 This scorer combines all the other graders together based on the type of test:
@@ -196,6 +204,26 @@ graph TD
 
 ### Step 4: The Report Card
 Finally, the framework compiles all scores into a report card. It saves a detailed technical report (JSON) and a human-readable summary (Markdown) showing exactly which cases failed and why, so developers know what to fix.
+
+Here is a realistic example of what a developer sees on their **Markdown Report Card**:
+
+> # 📋 Eval Run Report: `run-5e3a2f8b`
+> **Agent:** Research Assistant (`gpt-4o-mini`)
+> 
+> ### 📈 Summary
+> * **Total Cases:** 46
+> * **Passed:** 42
+> * **Failed:** 4
+> * **Average Score:** 0.912 (91.2% accuracy)
+> * **Average Latency:** 2.8 seconds
+> 
+> ### ❌ Failed Cases
+> #### Case ID: `unit-tool-11`
+> * **User Input:** *"What's the company vacation policy?"*
+> * **Final AI Response:** *"I couldn't find any information about that."*
+> * **Failed Scorers:**
+>   * **tool_selection** (Score: 0.0) — *Reason: The AI did not call the 'knowledge_base_search' tool like it was supposed to.*
+>   * **exact_match** (Score: 0.0) — *Reason: Response did not match the expected outcome.*
 
 ---
 
