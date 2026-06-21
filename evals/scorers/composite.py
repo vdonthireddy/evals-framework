@@ -94,14 +94,23 @@ class CompositeScorer(BaseScorer):
     def with_llm_judge(cls, llm_config: dict[str, Any]) -> "CompositeScorer":
         """Deterministic scorers (60%) + LLM judge (40%)."""
         deterministic = cls.default()
+        
+        from evals.scorers.llm_judge import GroundednessLLMScorer, LLMJudgeScorer
+        
         judge = LLMJudgeScorer(
             provider=llm_config["provider"],
             model_name=llm_config["model"],
             api_key=llm_config["api_key"],
         )
+        groundedness = GroundednessLLMScorer(
+            provider=llm_config["provider"],
+            model_name=llm_config["model"],
+            api_key=llm_config["api_key"],
+        )
         return cls([
-            (deterministic, 0.6),
-            (judge, 0.4),
+            (deterministic, 0.5),
+            (judge, 0.3),
+            (groundedness, 0.2),
         ])
 
     @classmethod

@@ -230,3 +230,72 @@ Output ONLY a valid JSON object matching this exact schema:
             text = text[:-3]
             
         return json.loads(text.strip())
+
+
+class GroundednessLLMScorer(LLMJudgeScorer):
+    """Uses an LLM to evaluate if the agent's output is grounded in the retrieved tool results.
+    
+    This is critical for detecting hallucinations. It only looks at the tool results
+    and the final output, ignoring whether the answer is factually correct in the real world.
+    """
+
+    def __init__(
+        self,
+        provider: str,
+        model_name: str,
+        api_key: str,
+    ):
+        # We inherit from LLMJudgeScorer just to reuse the client and parse logic
+        super().__init__(provider, model_name, api_key, criteria=["groundedness"])
+        self._threshold = 1.0  # Groundedness must be 100%
+
+    @property
+    def name(self) -> str:
+        return f"groundedness_llm_{self.provider}"
+
+    @property
+    def description(self) -> str:
+        return "Checks if all claims in the output are supported by tool results (hallucination check)"
+
+    def _build_prompt(self, case: EvalCase, output: AgentOutput) -> str:
+        """Construct the prompt for hallucination checking."""
+        
+        # Extract only the tool results
+        tool_results = []
+        for step in output.steps:
+            if step.action == "use_tool" and step.tool_result:
+                tool_results.append(f"--- Tool: {step.tool_name} ---\n{step.tool_result}\n")
+                
+        results_str = "\n".join(tool_results)
+        if not results_str.strip():
+            results_str = "No tools were called or no results were returned."
+
+        prompt = f"""You are a strict fact-checker evaluating an AI agent for hallucinations.
+Your job is to check if the agent's FINAL OUTPUT is entirely supported by the PROVIDED EVIDENCE.
+
+You MUST NOT use your own external knowledge. If the final output states a fact that is not 
+present in the PROVIDED EVIDENCE, it is a hallucination (score = 1).
+
+--- PROVIDED EVIDENCE (From Tool Calls) ---
+{results_str}
+
+--- AGENT'S FINAL OUTPUT ---
+{output.output}
+
+--- INSTRUCTIONS ---
+Score 'groundedness' on a 1-5 scale:
+5: All claims in the final output are explicitly supported by the evidence.
+3: Most claims are supported, but some minor details are hallucinated or assumed.
+1: The output contains major claims or facts not found in the evidence.
+
+Output ONLY a valid JSON object matching this exact schema:
+{{
+  "scores": {{
+    "groundedness": <int 1-5>
+  }},
+  "reasoning": "<str: explain exactly which claims are or are not supported>",
+  "overall": <int 1-5>
+}}
+"""
+        return prompt
+
