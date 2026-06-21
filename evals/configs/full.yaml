@@ -1,0 +1,12 @@
+# Full eval configuration with LLM-as-judge scoring
+max_concurrency: 5
+timeout_seconds: 120
+retry_on_error: true
+scorer_config: "with_llm_judge"
+output_dir: "evals/results/full"
+llm_judge_config:
+  provider: "openai"
+  model: "gpt-4o"
+  api_key_env: "JUDGE_LLM_API_KEY"
+tags_filter: null
+category_filter: null

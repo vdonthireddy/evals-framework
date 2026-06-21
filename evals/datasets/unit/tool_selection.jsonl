@@ -1,0 +1,15 @@
+{"id": "unit-tool-1", "input": "What are the latest trends in AI?", "expected_tool_calls": [{"tool_name": "web_search"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-2", "input": "Search the web for news about space exploration.", "expected_tool_calls": [{"tool_name": "web_search"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-3", "input": "Find information on the Artemis III moon landing.", "expected_tool_calls": [{"tool_name": "web_search"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-4", "input": "Who is the current leader in quantum computing?", "expected_tool_calls": [{"tool_name": "web_search"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-5", "input": "What is 25 * 37 + 12?", "expected_tool_calls": [{"tool_name": "calculator"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-6", "input": "Calculate the square root of 144.", "expected_tool_calls": [{"tool_name": "calculator"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-7", "input": "If I have 3 apples and buy 5 more, how many do I have?", "expected_tool_calls": [{"tool_name": "calculator"}], "tags": ["tool-selection", "unit"], "difficulty": "medium"}
+{"id": "unit-tool-8", "input": "Is it raining in London?", "expected_tool_calls": [{"tool_name": "get_weather"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-9", "input": "What is the temperature in San Francisco right now?", "expected_tool_calls": [{"tool_name": "get_weather"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-10", "input": "Do I need an umbrella in Paris today?", "expected_tool_calls": [{"tool_name": "get_weather"}], "tags": ["tool-selection", "unit"], "difficulty": "medium"}
+{"id": "unit-tool-11", "input": "What's the company vacation policy?", "expected_tool_calls": [{"tool_name": "knowledge_base_search"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-12", "input": "How many days of parental leave do I get?", "expected_tool_calls": [{"tool_name": "knowledge_base_search"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-13", "input": "Tell me about DataSync Pro.", "expected_tool_calls": [{"tool_name": "knowledge_base_search"}], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-14", "input": "Hello, how are you today?", "expected_tool_calls": [], "tags": ["tool-selection", "unit"], "difficulty": "easy"}
+{"id": "unit-tool-15", "input": "Can you help me with a few questions?", "expected_tool_calls": [], "tags": ["tool-selection", "unit"], "difficulty": "easy"}

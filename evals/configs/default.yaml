@@ -1,0 +1,8 @@
+# Default eval configuration
+max_concurrency: 5
+timeout_seconds: 60
+retry_on_error: true
+scorer_config: "default"
+output_dir: "evals/results"
+tags_filter: null
+category_filter: null

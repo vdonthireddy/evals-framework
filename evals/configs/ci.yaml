@@ -1,0 +1,7 @@
+# CI-optimized eval configuration (faster, fewer cases)
+max_concurrency: 3
+timeout_seconds: 30
+retry_on_error: false
+scorer_config: "default"  # no LLM judge in CI to save cost
+output_dir: "evals/results/ci"
+category_filter: "regression"  # only run golden cases in CI
