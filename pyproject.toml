@@ -1,0 +1,32 @@
+[project]
+name = "evals-framework"
+version = "0.1.0"
+description = "A generic evals framework for LLM agentic applications"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.0.0",
+    "anthropic>=0.30.0",
+    "google-genai>=1.0.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.scripts]
+evals-agent = "agent.cli:main"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agent*", "evals*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
