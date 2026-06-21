@@ -20,6 +20,8 @@ class CompositeScorer(BaseScorer):
     """Combines multiple scorers with configurable weights."""
 
     def __init__(self, scorers_with_weights: list[tuple[BaseScorer, float]]):
+        super().__init__()
+        self._threshold = 0.7
         self._scorers_with_weights = scorers_with_weights
         
         # Normalize weights to sum to 1.0
@@ -38,10 +40,6 @@ class CompositeScorer(BaseScorer):
     def description(self) -> str:
         names = [s.name for s, _ in self._scorers_with_weights]
         return f"Combines: {', '.join(names)}"
-
-    @property
-    def threshold(self) -> float:
-        return 0.7
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         if not self._scorers_with_weights:
@@ -114,7 +112,6 @@ class CompositeScorer(BaseScorer):
     @classmethod
     def regression(cls) -> "CompositeScorer":
         """Deterministic scorers, but requiring perfect scores."""
-        # We can override the thresholds on instances
         scorers = [
             ToolSelectionScorer(),
             ToolArgumentScorer(),
@@ -124,8 +121,8 @@ class CompositeScorer(BaseScorer):
             ContainsKeywordsScorer(),
         ]
         
-        # Hack to override properties on instances just for this run
+        # Override thresholds to require perfect scores for regression tests
         for s in scorers:
-            s.threshold = 1.0  # type: ignore
+            s.threshold = 1.0
             
         return cls([(s, 1.0) for s in scorers])

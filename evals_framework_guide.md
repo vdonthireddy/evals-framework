@@ -49,7 +49,7 @@ Each eval case is a structured record:
   "id": "booking-001",
   "input": "Book a round-trip flight from SFO to JFK for next Tuesday",
   "expected_tool_calls": [
-    {"tool": "search_flights", "args": {"from": "SFO", "to": "JFK", "type": "round_trip"}}
+    {"tool_name": "search_flights", "arguments": {"from": "SFO", "to": "JFK", "type": "round_trip"}}
   ],
   "expected_outcome": "flight_booked",
   "tags": ["booking", "happy-path"],
@@ -122,7 +122,7 @@ def tool_call_match(expected_calls: list, actual_calls: list) -> float:
     if len(expected_calls) != len(actual_calls):
         return 0.0
     matches = sum(1 for e, a in zip(expected_calls, actual_calls)
-                  if e["tool"] == a["tool"] and e["args"] == a["args"])
+                  if e["tool_name"] == a["tool_name"] and e.get("arguments") == a.get("arguments"))
     return matches / len(expected_calls)
 
 def trajectory_efficiency(actual_steps: int, optimal_steps: int) -> float:

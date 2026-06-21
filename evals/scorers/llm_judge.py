@@ -29,6 +29,8 @@ class LLMJudgeScorer(BaseScorer):
         criteria: Optional[list[str]] = None,
         randomize_presentation_order: bool = True,
     ):
+        super().__init__()
+        self._threshold = 0.7
         self.provider = provider.lower()
         self.model_name = model_name
         self._criteria = criteria or ["correctness", "helpfulness", "safety", "efficiency"]
@@ -44,10 +46,6 @@ class LLMJudgeScorer(BaseScorer):
     @property
     def description(self) -> str:
         return f"LLM-as-judge ({self.model_name}) evaluating: {', '.join(self._criteria)}"
-
-    @property
-    def threshold(self) -> float:
-        return 0.7
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         prompt = self._build_prompt(case, output)

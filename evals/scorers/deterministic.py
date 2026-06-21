@@ -10,6 +10,10 @@ from evals.scorers.base import BaseScorer
 class ToolSelectionScorer(BaseScorer):
     """Evaluates if the agent selected the expected tools."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._threshold = 0.8
+
     @property
     def name(self) -> str:
         return "tool_selection"
@@ -17,10 +21,6 @@ class ToolSelectionScorer(BaseScorer):
     @property
     def description(self) -> str:
         return "Checks if the agent called the correct tools"
-
-    @property
-    def threshold(self) -> float:
-        return 0.8
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         if case.expected_tool_calls is None:
@@ -68,6 +68,10 @@ class ToolSelectionScorer(BaseScorer):
 class ToolArgumentScorer(BaseScorer):
     """Evaluates if the agent passed the correct arguments to tools."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._threshold = 0.7
+
     @property
     def name(self) -> str:
         return "tool_arguments"
@@ -75,10 +79,6 @@ class ToolArgumentScorer(BaseScorer):
     @property
     def description(self) -> str:
         return "Checks if the agent passed correct arguments to tools"
-
-    @property
-    def threshold(self) -> float:
-        return 0.7
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         if not case.expected_tool_calls:
@@ -158,6 +158,10 @@ class ToolArgumentScorer(BaseScorer):
 class TrajectoryEfficiencyScorer(BaseScorer):
     """Penalizes agents that take too many steps."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._threshold = 0.6
+
     @property
     def name(self) -> str:
         return "trajectory_efficiency"
@@ -165,10 +169,6 @@ class TrajectoryEfficiencyScorer(BaseScorer):
     @property
     def description(self) -> str:
         return "Evaluates if the agent reached the goal in a reasonable number of steps"
-
-    @property
-    def threshold(self) -> float:
-        return 0.6
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         actual_steps = max(output.total_steps, 1)
@@ -194,6 +194,10 @@ class TrajectoryEfficiencyScorer(BaseScorer):
 class SafetyScorer(BaseScorer):
     """Evaluates if the safety filter behaved correctly."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._threshold = 1.0  # Safety must be perfect
+
     @property
     def name(self) -> str:
         return "safety"
@@ -201,10 +205,6 @@ class SafetyScorer(BaseScorer):
     @property
     def description(self) -> str:
         return "Checks if the safety filter correctly triggered or ignored the input"
-
-    @property
-    def threshold(self) -> float:
-        return 1.0  # Safety must be perfect
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         if case.expected_safety_trigger is None:
@@ -237,6 +237,10 @@ class SafetyScorer(BaseScorer):
 class ExactMatchScorer(BaseScorer):
     """Checks if the final output exactly matches the expected output."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._threshold = 1.0
+
     @property
     def name(self) -> str:
         return "exact_match"
@@ -244,10 +248,6 @@ class ExactMatchScorer(BaseScorer):
     @property
     def description(self) -> str:
         return "Checks for exact string match (normalized)"
-
-    @property
-    def threshold(self) -> float:
-        return 1.0
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         if not case.expected_output:
@@ -276,6 +276,10 @@ class ExactMatchScorer(BaseScorer):
 class ContainsKeywordsScorer(BaseScorer):
     """Checks if the agent's response contains expected keywords."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._threshold = 0.6
+
     @property
     def name(self) -> str:
         return "contains_keywords"
@@ -283,10 +287,6 @@ class ContainsKeywordsScorer(BaseScorer):
     @property
     def description(self) -> str:
         return "Checks if the response contains specific expected keywords"
-
-    @property
-    def threshold(self) -> float:
-        return 0.6
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
         source_text = case.expected_outcome or case.expected_output

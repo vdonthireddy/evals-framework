@@ -6,7 +6,7 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Iterator, Optional
 
 from pydantic import ValidationError
 
@@ -120,6 +120,6 @@ class EvalDataset:
         """Return the number of cases in the dataset."""
         return len(self._cases)
 
-    def __iter__(self) -> Iterable[EvalCase]:
+    def __iter__(self) -> Iterator[EvalCase]:
         """Iterate over the cases in the dataset."""
         return iter(self._cases)

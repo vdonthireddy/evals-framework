@@ -12,6 +12,9 @@ class BaseScorer(ABC):
     whether the output meets the expectations defined in the case.
     """
 
+    def __init__(self) -> None:
+        self._threshold: float = 0.7
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -25,7 +28,11 @@ class BaseScorer(ABC):
     @property
     def threshold(self) -> float:
         """Minimum score required to pass (0.0 to 1.0). Default is 0.7."""
-        return 0.7
+        return self._threshold
+
+    @threshold.setter
+    def threshold(self, value: float) -> None:
+        self._threshold = value
 
     @abstractmethod
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:

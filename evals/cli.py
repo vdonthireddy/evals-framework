@@ -76,6 +76,13 @@ async def run_cmd(args: argparse.Namespace) -> int:
         logger.error(f"Unknown adapter: {args.adapter}")
         return 1
         
+    # 3b. Resolve LLM judge API key from environment if configured
+    if config.llm_judge_config and "api_key_env" in config.llm_judge_config:
+        env_var = config.llm_judge_config.pop("api_key_env")
+        config.llm_judge_config["api_key"] = os.getenv(env_var, "")
+        if not config.llm_judge_config["api_key"]:
+            logger.warning(f"No {env_var} found in environment. LLM judge may fail.")
+
     # 4. Run evals
     runner = EvalRunner(adapter, dataset, config)
     report = await runner.run()
