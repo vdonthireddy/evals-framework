@@ -52,8 +52,23 @@ Each eval case is a structured record:
     {"tool_name": "search_flights", "arguments": {"from": "SFO", "to": "JFK", "type": "round_trip"}}
   ],
   "expected_outcome": "flight_booked",
+  "max_tokens": 5000,
+  "max_latency_ms": 15000,
   "tags": ["booking", "happy-path"],
   "difficulty": "easy"
+}
+```
+
+For multi-turn conversational agents, cases can optionally define an array of `turns`:
+
+```json
+{
+  "id": "multi-turn-001",
+  "input": "Will be ignored if turns are present",
+  "turns": [
+    {"input": "What's the weather in Tokyo?", "expected_tool_calls": [{"tool_name": "get_weather"}]},
+    {"input": "Convert that to Fahrenheit", "expected_tool_calls": [{"tool_name": "calculator"}], "expected_outcome": "75"}
+  ]
 }
 ```
 
@@ -128,6 +143,12 @@ def tool_call_match(expected_calls: list, actual_calls: list) -> float:
 def trajectory_efficiency(actual_steps: int, optimal_steps: int) -> float:
     """Penalize unnecessarily long trajectories."""
     return min(1.0, optimal_steps / max(actual_steps, 1))
+
+def cost_latency_budget(actual_tokens: int, budget: int) -> float:
+    """Linearly decay score if budget is exceeded. Fail at 2x budget."""
+    if actual_tokens <= budget: return 1.0
+    if actual_tokens >= budget * 2: return 0.0
+    return 1.0 - ((actual_tokens - budget) / budget)
 ```
 
 ### 3.2 LLM-as-Judge (Flexible, Handles Nuance)
@@ -167,7 +188,22 @@ Respond in JSON:
 > - **Verbosity bias**: Longer ≠ better. Explicitly instruct the judge to penalize unnecessary verbosity.
 > - **Calibrate**: Run your judge on a set of human-graded examples to measure judge↔human agreement.
 
-### 3.3 Human-in-the-Loop (Ground Truth, Expensive)
+### 3.3 Groundedness / Hallucination Detection (Critical)
+
+A specialized LLM judge should check if the agent's output is *grounded* in the retrieved context. This is the #1 way to catch hallucinations.
+
+```python
+GROUNDEDNESS_PROMPT = """
+You are a strict fact-checker. 
+Check if the agent's FINAL OUTPUT is entirely supported by the PROVIDED EVIDENCE (Tool Results).
+You MUST NOT use your own external knowledge. If a fact is stated that is not present in the evidence, score it as a 1 (Hallucination).
+
+Evidence: {tool_results}
+Output: {agent_output}
+"""
+```
+
+### 3.4 Human-in-the-Loop (Ground Truth, Expensive)
 
 Use for:
 - Building initial labeled datasets

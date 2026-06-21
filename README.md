@@ -182,10 +182,12 @@ Because `evals/conftest.py` automatically parametrizes the dataset into native P
 ### ✅ Phase 2: Generic Evals Framework
 - [x] Abstract interfaces (`AgentAdapter`, `AgentOutput`, `EvalCase`, `ScoreResult`)
 - [x] Deterministic scorers (tool selection, argument matching, trajectory efficiency, safety, exact match)
+- [x] Cost and Latency Budgeting scorer (`CostLatencyScorer`)
 - [x] LLM-as-judge scorer with bias mitigation
+- [x] Groundedness LLM Scorer for strict hallucination detection
 - [x] Composite scorer with configurable weights
 - [x] Eval dataset loader (JSONL) with filtering and sampling
-- [x] 44 eval cases across unit / integration / e2e / regression categories
+- [x] Multi-turn conversation execution and trace aggregation
 - [x] Async eval runner with concurrency control and timeouts
 - [x] Reporter (terminal, JSON, markdown) with run-to-run comparison
 - [x] CLI for running and comparing eval runs
