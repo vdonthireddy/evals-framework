@@ -214,7 +214,7 @@ Because `evals/conftest.py` automatically parametrizes the dataset into native P
 - [x] Pytest integration for CI/CD
 - [x] Framework unit tests
 
-See [`step-by-step-guide-to-build-evals-framework.md`](./step-by-step-guide-to-build-evals-framework.md) for the full design specifications.
+See [`developer_walkthrough.md`](./developer_walkthrough.md) for the full design specifications.
 
 ---
 
