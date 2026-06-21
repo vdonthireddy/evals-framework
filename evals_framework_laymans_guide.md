@@ -19,24 +19,28 @@ Here is the difference between standard AI and an AI Agent:
 ```mermaid
 graph LR
     subgraph A [Standard AI Q&A]
-        User1[🧑 User] -->|"Ask a question"| LLM1[🤖 Standard LLM]
-        LLM1 -->|"Text response only"| User1
+        User1[🧑 User] -->|"1. Ask Question"| LLM1[🤖 Standard LLM]
+        LLM1 -->|"2. Text Response"| User1
     end
-
-    LLM1 -->|"Upgrade: Add planning & tools"| Agent
 
     subgraph B [AI Agent Loop]
-        User2[🧑 User] -->|"Give a Goal"| Agent[🧠 AI Agent]
-        Agent -->|"1. Plan & Decide"| ToolCall{Needs a Tool?}
-        ToolCall -->|Yes| Tool[🔧 Calls Tool<br/>Web, Calendar, Math]
+        User2[🧑 User] -->|"1. Give Goal"| Agent[🧠 AI Agent Orchestrator]
+        Agent -->|"2. Ask what to do"| LLM[🤖 LLM / Brain]
+        LLM -->|"3. Decide"| Decision{Needs a Tool?}
+        
+        Decision -->|Yes| Tool[🔧 Execute Tool<br/>Web, Calendar, Math]
         Tool -->|Result| Agent
-        ToolCall -->|No| FinalResult[✅ Goal Completed]
-        FinalResult --> User2
+        
+        Decision -->|No| Respond[✉️ Deliver Response]
+        Respond --> User2
     end
 
+    LLM1 -->|"Upgrade: Add orchestration & tools"| Agent
+
     style LLM1 fill:#f9f9f9,stroke:#ccc
+    style LLM fill:#f9f9f9,stroke:#ccc
     style Agent fill:#e6fffa,stroke:#38b2ac,stroke-width:2px
-    style ToolCall fill:#fff5eb,stroke:#ed8936
+    style Decision fill:#fff5eb,stroke:#ed8936
 ```
 
 **Real-World Example:**

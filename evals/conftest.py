@@ -71,7 +71,53 @@ def run_eval(agent_adapter: ExampleAgentAdapter, composite_scorer: CompositeScor
         agent_adapter.reset()
         
         # Execute the agent
-        output: AgentOutput = await agent_adapter.execute(case.input)
+        if case.is_multi_turn:
+            from evals.core.interfaces import TraceStep
+            all_steps: list[TraceStep] = []
+            combined_output_text = []
+            total_tokens = 0
+            total_latency = 0.0
+            aggregated_expected_tools = []
+            last_metadata = {}
+            
+            if not case.turns:
+                raise ValueError("Case is marked multi-turn but has no turns.")
+                
+            for turn_idx, turn in enumerate(case.turns):
+                turn_output = await agent_adapter.execute(turn.input)
+                
+                base_step = len(all_steps)
+                for step in turn_output.steps:
+                    step.step_number += base_step
+                    all_steps.append(step)
+                    
+                combined_output_text.append(f"Turn {turn_idx+1} Output: {turn_output.output}")
+                
+                if turn_output.total_tokens is not None:
+                    total_tokens += turn_output.total_tokens
+                if turn_output.total_latency_ms is not None:
+                    total_latency += turn_output.total_latency_ms
+                    
+                if turn.expected_tool_calls:
+                    aggregated_expected_tools.extend(turn.expected_tool_calls)
+                    
+                last_metadata = turn_output.metadata
+                
+            case.expected_tool_calls = aggregated_expected_tools
+            if case.turns[-1].expected_outcome:
+                case.expected_outcome = case.turns[-1].expected_outcome
+                
+            output = AgentOutput(
+                input=case.input,
+                output="\n".join(combined_output_text),
+                steps=all_steps,
+                total_steps=len(all_steps),
+                total_tokens=total_tokens if total_tokens > 0 else None,
+                total_latency_ms=total_latency if total_latency > 0 else None,
+                metadata=last_metadata
+            )
+        else:
+            output = await agent_adapter.execute(case.input)
         
         # Score the output
         result = await composite_scorer.score(case, output)
