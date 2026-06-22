@@ -186,15 +186,15 @@ class TaskPlanner:
 
     def _parse_response(self, raw: str) -> PlanStep:
         """Parse the raw LLM response into a PlanStep."""
-        # Strip markdown code fences if present
-        text = raw.strip()
-        if text.startswith("```"):
-            # Remove opening fence (possibly ```json)
-            first_newline = text.index("\n")
-            text = text[first_newline + 1 :]
-        if text.endswith("```"):
-            text = text[: -3]
-        text = text.strip()
+        import re
+        
+        # Try to extract a JSON block using regex
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL | re.IGNORECASE)
+        if match:
+            text = match.group(1)
+        else:
+            # Fallback if no markdown block is used
+            text = raw.strip()
 
         data = json.loads(text)
 

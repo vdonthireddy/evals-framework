@@ -219,17 +219,15 @@ Output ONLY a valid JSON object matching this exact schema:
 
     def _parse_json_response(self, text: str) -> dict[str, Any]:
         """Extract and parse JSON from the LLM's response."""
-        # Remove markdown code block wrappers if present
-        text = text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        elif text.startswith("```"):
-            text = text[3:]
+        import re
         
-        if text.endswith("```"):
-            text = text[:-3]
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL | re.IGNORECASE)
+        if match:
+            text = match.group(1)
+        else:
+            text = text.strip()
             
-        return json.loads(text.strip())
+        return json.loads(text)
 
 
 class GroundednessLLMScorer(LLMJudgeScorer):

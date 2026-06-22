@@ -76,9 +76,30 @@ async def run_cmd(args: argparse.Namespace) -> int:
         logger.error(f"Unknown adapter: {args.adapter}")
         return 1
         
-    # 3b. Resolve LLM judge API key from environment if configured
-    if config.llm_judge_config and "api_key_env" in config.llm_judge_config:
-        env_var = config.llm_judge_config.pop("api_key_env")
+    # 3b. Resolve LLM judge config from environment or yaml
+    if config.scorer_config == "with_llm_judge":
+        if not config.llm_judge_config:
+            config.llm_judge_config = {}
+            
+        # Override or set from environment variables
+        provider = os.getenv("JUDGE_LLM_PROVIDER")
+        if provider:
+            config.llm_judge_config["provider"] = provider
+        elif "provider" not in config.llm_judge_config:
+            config.llm_judge_config["provider"] = "openai"  # default
+            
+        model = os.getenv("JUDGE_MODEL_NAME")
+        if model:
+            config.llm_judge_config["model"] = model
+        elif "model" not in config.llm_judge_config:
+            config.llm_judge_config["model"] = "gpt-4o"  # default
+            
+        # API Key resolution
+        if "api_key_env" in config.llm_judge_config:
+            env_var = config.llm_judge_config.pop("api_key_env")
+        else:
+            env_var = "JUDGE_LLM_API_KEY"
+            
         config.llm_judge_config["api_key"] = os.getenv(env_var, "")
         if not config.llm_judge_config["api_key"]:
             logger.warning(f"No {env_var} found in environment. LLM judge may fail.")

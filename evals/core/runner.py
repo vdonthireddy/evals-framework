@@ -136,24 +136,26 @@ class EvalRunner:
 
     async def _evaluate_case(self, case: EvalCase, scorer: CompositeScorer) -> EvalResult:
         """Evaluate a single case (with retries and timeouts)."""
+        import copy
+        eval_case = copy.deepcopy(case)
         
         async def _run_once() -> EvalResult:
             self.adapter.reset()
             try:
-                if case.is_multi_turn:
+                if eval_case.is_multi_turn:
                     output = await asyncio.wait_for(
-                        self._run_multi_turn(case),
+                        self._run_multi_turn(eval_case),
                         timeout=self.config.timeout_seconds
                     )
                 else:
                     output = await asyncio.wait_for(
-                        self.adapter.execute(case.input),
+                        self.adapter.execute(eval_case.input),
                         timeout=self.config.timeout_seconds
                     )
-                score_result = await scorer.score(case, output)
+                score_result = await scorer.score(eval_case, output)
                 return EvalResult(
-                    case_id=case.id,
-                    case_input=case.input,
+                    case_id=eval_case.id,
+                    case_input=eval_case.input,
                     agent_output=output,
                     scores=[score_result],
                     overall_passed=score_result.passed,

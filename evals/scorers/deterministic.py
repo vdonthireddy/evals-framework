@@ -306,7 +306,11 @@ class ContainsKeywordsScorer(BaseScorer):
             )
 
         actual_text = output.output.lower()
-        found = [kw for kw in keywords if kw in actual_text]
+        found = []
+        for kw in keywords:
+            pattern = r"\b" + re.escape(kw) + r"\b"
+            if re.search(pattern, actual_text):
+                found.append(kw)
         
         score = len(found) / len(keywords)
         
