@@ -162,7 +162,7 @@ These graders use simple, objective math and programming rules:
 * **Efficiency Grader (Trajectory Quality):** Checks if the AI got to the answer in a reasonable number of steps (the path it took is called its "trajectory"). If it took 10 steps to solve a 2-step problem, its score is lowered.
 * **Exact Match Grader:** Checks if the AI's final answer exactly matches the expected text (ignoring minor capitalization or spaces).
 * **Keyword Spotter:** Checks if the final answer contains crucial keywords (e.g., if the expected outcome is "20", does the response contain the word "20"?).
-* **Safety Gatekeeper:** Checks if the safety guardrails behaved correctly. Did the AI block an unsafe request? Did it falsely block a safe request?
+* **Safety Gatekeeper (Guardrails & Safety / Risk Management):** Checks if the safety guardrails behaved correctly. Did the AI block unsafe requests (like hacking or prompt injection)? Did it falsely block safe queries (false positives)?
 
 #### 💰 B. The Accountant (Cost & Latency Budget Scorer)
 AI isn't free—every time it "thinks" or calls external models, it costs money (tokens) and time (latency). 
@@ -300,7 +300,7 @@ To show developers how this works, the project includes a pre-built **Research A
 * 🧮 **Calculator Tool** for doing math.
 * 🌡️ **Weather Tool** for checking temperature.
 * 📚 **Knowledge Base Tool** for looking up company documents.
-* 🛡️ **Safety Filter** to prevent harmful instructions.
+* 🛡️ **Safety Filter (Guardrails & Safety):** Prevents harmful instructions at both the input level (blocking prompt injections, hacks, or massive inputs) and the output level (preventing system prompt leaks and unsafe shell code execution).
 
 ---
 
