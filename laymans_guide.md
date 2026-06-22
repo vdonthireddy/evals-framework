@@ -17,7 +17,7 @@ That is exactly what this project—the **Evals Framework**—does for Artificia
   * [Step 2: Taking the Test (The Runner)](#step-2-taking-the-test-the-runner)
   * [Step 3: The Panel of Graders (The Scorers)](#step-3-the-panel-of-graders-the-scorers)
     * [📐 A. The Rule-Followers (Deterministic Scorers)](#a-the-rule-followers-deterministic-scorers)
-    * [💰 B. The Accountant (Cost & Latency Budget Scorer)](#b-the-accountant-cost--latency-budget-scorer)
+    * [💰 B. The Accountant (Cost and Latency Budget Scorer)](#b-the-accountant-cost-and-latency-budget-scorer)
     * [🧑‍🏫 C. The AI Teachers (LLM-as-Judge Scorers)](#c-the-ai-teachers-llm-as-judge-scorers)
     * [🎓 D. The Headmaster (Composite Scorer)](#d-the-headmaster-composite-scorer)
   * [Step 4: The Report Card](#step-4-the-report-card)
@@ -155,7 +155,7 @@ The runner records every single action, tool call, reasoning thought, and second
 ### Step 3: The Panel of Graders (The Scorers)
 Once the AI finishes, the framework hands its work over to several strict graders:
 
-#### 📐 A. The Rule-Followers (Deterministic Scorers)
+#### A. The Rule-Followers (Deterministic Scorers)
 These graders use simple, objective math and programming rules:
 * **Tool Selection Grader:** Checks if the AI called the correct tools (e.g., did it use the calendar tool when asked to schedule a meeting?). It also awards a bonus if the tools were called in the exact correct order.
 * **Tool Argument Grader:** Checks if the AI passed the correct details to the tools (e.g., did it search for "Seattle" and not "Portland"?).
@@ -164,7 +164,7 @@ These graders use simple, objective math and programming rules:
 * **Keyword Spotter:** Checks if the final answer contains crucial keywords (e.g., if the expected outcome is "20", does the response contain the word "20"?).
 * **Safety Gatekeeper (Guardrails & Safety / Risk Management):** Checks if the safety guardrails behaved correctly. Did the AI block unsafe requests (like hacking or prompt injection)? Did it falsely block safe queries (false positives)?
 
-#### 💰 B. The Accountant (Cost & Latency Budget Scorer)
+#### B. The Accountant (Cost and Latency Budget Scorer)
 AI isn't free—every time it "thinks" or calls external models, it costs money (tokens) and time (latency). 
 * This scorer compares the AI's total spent tokens and seconds against a strict budget.
 * **The Sliding Scale:** If the AI stays under budget, it gets a perfect **1.0**. If it goes slightly over budget, its score slowly decays. If it spends **double** the budget, it gets a flat **0.0** (Failed!).
@@ -177,7 +177,7 @@ AI isn't free—every time it "thinks" or calls external models, it costs money 
    2.0x Budget or more      0.0 (Fail)
 ```
 
-#### 🧑‍🏫 C. The AI Teachers (LLM-as-Judge Scorers)
+#### C. The AI Teachers (LLM-as-Judge Scorers)
 Sometimes, rules aren't enough. If the AI writes a polite, custom email, a computer rule can't grade its tone. We use a second, stricter AI to act as a teacher:
 * **The Quality Judge:** Reads the agent's work and grades it from 1 to 5 on dimensions like **Correctness**, **Helpfulness**, **Efficiency (Trajectory Quality)**, and **Safety**.
   * **Example:**
@@ -192,7 +192,7 @@ Sometimes, rules aren't enough. If the AI writes a polite, custom email, a compu
     * **AI Output:** *"You get 15 days of paid vacation per year. In addition, you get unlimited sick leave."*
     * **Fact-Checker Grade: FAIL (1/5)** because the "unlimited sick leave" claim is *not* supported by the retrieved evidence. Even if it is true in the real world, the AI wasn't given that evidence in this task—meaning it made it up.
 
-#### 🎓 D. The Headmaster (Composite Scorer)
+#### D. The Headmaster (Composite Scorer)
 This scorer combines all the other graders together based on the type of test:
 * **Default Exam:** Evaluates all deterministic rules together.
 * **AI Judge Exam:** Combines rules (50%), the AI Quality Judge (30%), and the Fact-Checker (20%).
