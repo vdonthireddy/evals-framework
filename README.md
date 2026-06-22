@@ -11,20 +11,20 @@ A generic, extensible evaluation framework for testing LLM-powered agentic appli
 
 ## 📖 Table of Contents
 
-* [🏗 Architecture](#-architecture)
-* [🚀 Quick Start](#-quick-start)
+* [🏗 Architecture](#architecture)
+* [🚀 Quick Start](#quick-start)
   * [1. Install Dependencies](#1-install-dependencies)
   * [2. Configure API Keys](#2-configure-api-keys)
   * [3. Run the Example Agent Interactively](#3-run-the-example-agent-interactively)
   * [4. Run the Evaluation Suite](#4-run-the-evaluation-suite)
-* [🛠 Extending the Framework](#-extending-the-framework)
+* [🛠 Extending the Framework](#extending-the-framework)
   * [How to Add a New Agent](#how-to-add-a-new-agent)
   * [How to Add New Eval Cases](#how-to-add-new-eval-cases)
   * [How to Add New Scorers](#how-to-add-new-scorers)
   * [How to Run Evals in CI](#how-to-run-evals-in-ci)
-* [🎯 Project Roadmap](#-project-roadmap)
-  * [✅ Phase 1: Example Agent](#-phase-1-example-agent)
-  * [✅ Phase 2: Generic Evals Framework](#-phase-2-generic-evals-framework)
+* [🎯 Project Roadmap](#project-roadmap)
+  * [✅ Phase 1: Example Agent](#phase-1-example-agent)
+  * [✅ Phase 2: Generic Evals Framework](#phase-2-generic-evals-framework)
 * [License](#license)
 
 ---
