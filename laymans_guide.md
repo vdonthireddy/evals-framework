@@ -159,7 +159,7 @@ Once the AI finishes, the framework hands its work over to several strict grader
 These graders use simple, objective math and programming rules:
 * **Tool Selection Grader:** Checks if the AI called the correct tools (e.g., did it use the calendar tool when asked to schedule a meeting?). It also awards a bonus if the tools were called in the exact correct order.
 * **Tool Argument Grader:** Checks if the AI passed the correct details to the tools (e.g., did it search for "Seattle" and not "Portland"?).
-* **Efficiency Grader:** Checks if the AI got to the answer in a reasonable number of steps. If it took 10 steps to solve a 2-step problem, its score is lowered.
+* **Efficiency Grader (Trajectory Quality):** Checks if the AI got to the answer in a reasonable number of steps (the path it took is called its "trajectory"). If it took 10 steps to solve a 2-step problem, its score is lowered.
 * **Exact Match Grader:** Checks if the AI's final answer exactly matches the expected text (ignoring minor capitalization or spaces).
 * **Keyword Spotter:** Checks if the final answer contains crucial keywords (e.g., if the expected outcome is "20", does the response contain the word "20"?).
 * **Safety Gatekeeper:** Checks if the safety guardrails behaved correctly. Did the AI block an unsafe request? Did it falsely block a safe request?
@@ -179,7 +179,7 @@ AI isn't free—every time it "thinks" or calls external models, it costs money 
 
 #### 🧑‍🏫 C. The AI Teachers (LLM-as-Judge Scorers)
 Sometimes, rules aren't enough. If the AI writes a polite, custom email, a computer rule can't grade its tone. We use a second, stricter AI to act as a teacher:
-* **The Quality Judge:** Reads the agent's work and grades it from 1 to 5 on dimensions like **Correctness**, **Helpfulness**, **Efficiency**, and **Safety**.
+* **The Quality Judge:** Reads the agent's work and grades it from 1 to 5 on dimensions like **Correctness**, **Helpfulness**, **Efficiency (Trajectory Quality)**, and **Safety**.
   * **Example:**
     * **Task:** *"Write a polite email to a client explaining why their package is delayed."*
     * **Bad Response (Grade 2/5):** *"Sorry, package delayed. Weather. Will arrive next week."* (It is technically correct but extremely blunt, impolite, and unhelpful).
@@ -267,7 +267,7 @@ Let's look at one full test case from start to finish.
 **How the Evals Framework Grades It:**
 * **Tool Selection:** **Passed** (It called `get_weather` and then `calculator`).
 * **Tool Arguments:** **Passed** (It passed "Seattle" and the correct math formula).
-* **Efficiency:** **Passed** (It solved the task in exactly 2 steps).
+* **Efficiency (Trajectory Quality):** **Passed** (It solved the task in exactly 2 steps).
 * **Cost & Latency:** **Passed** (It took 2.5 seconds, well under the 10-second budget).
 * **Fact-Checker (Groundedness):** **Passed** (20°C is mathematically backed by the weather data and calculation).
 * **Overall Grade:** **PASS (1.0)**
