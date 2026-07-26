@@ -944,6 +944,10 @@ Below is a complete reference of every class across Phase 1 and Phase 2, its fil
 | `EvalRunReport` | [evals/core/runner.py](evals/core/runner.py) | Phase 2 (Core) | Summary report of an entire evaluation suite run. |
 | `EvalRunner` | [evals/core/runner.py](evals/core/runner.py) | Phase 2 (Core) | Async execution engine executing eval cases against adapters. |
 | `EvalReporter` | [evals/core/reporter.py](evals/core/reporter.py) | Phase 2 (Core) | Generates Rich terminal outputs, JSON summaries, and Markdown reports. |
+| `BaseEvalStore` | [evals/store/base.py](evals/store/base.py) | Phase 2 (Store) | Abstract interface defining local evaluation run persistence. |
+| `SQLiteEvalStore` | [evals/store/sqlite_store.py](evals/store/sqlite_store.py) | Phase 2 (Store) | Concrete SQLite persistence store and model comparison engine. |
+| `EvalReportHTTPRequestHandler` | [evals/app/server.py](evals/app/server.py) | Phase 2 (App) | REST API and static asset HTTP server for reporting dashboard. |
+| `run_report_server` | [evals/app/server.py](evals/app/server.py) | Phase 2 (App) | Entrypoint launching the reporting web app server. |
 
 ---
 

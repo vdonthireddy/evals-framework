@@ -20,6 +20,7 @@ dependencies = [
 [project.scripts]
 evals-agent = "agent.cli:main"
 evals-run = "evals.cli:main"
+evals-report = "evals.cli:report_main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

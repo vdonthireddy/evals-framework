@@ -78,9 +78,11 @@ class AgentTrace(BaseModel):
 def _create_llm_client(provider: str, api_key: str) -> Any:
     """Create an async LLM client for the specified provider."""
     key = api_key or "dummy-key-for-offline"
-    if provider == "openai":
+    if provider in ("openai", "ollama"):
+        import os
         from openai import AsyncOpenAI
-        return AsyncOpenAI(api_key=key)
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1") if provider == "ollama" else None
+        return AsyncOpenAI(api_key=key, base_url=base_url)
 
     elif provider == "anthropic":
         from anthropic import AsyncAnthropic

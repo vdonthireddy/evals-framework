@@ -13,10 +13,11 @@ A generic, extensible evaluation framework for testing LLM-powered agentic appli
 
 * [🏗 Architecture](#architecture)
 * [🚀 Quick Start](#quick-start)
-  * [1. Install Dependencies](#1-install-dependencies)
-  * [2. Configure API Keys](#2-configure-api-keys)
-  * [3. Run the Example Agent Interactively](#3-run-the-example-agent-interactively)
-  * [4. Run the Evaluation Suite](#4-run-the-evaluation-suite)
+  * [🐳 1. Docker One-Click Launch (Recommended)](#1-docker-one-click-launch-recommended)
+  * [2. Install Dependencies](#2-install-dependencies)
+  * [3. Configure API Keys](#3-configure-api-keys)
+  * [4. Run the Example Agent Interactively](#4-run-the-example-agent-interactively)
+  * [5. Run the Evaluation Suite](#5-run-the-evaluation-suite)
 * [🛠 Extending the Framework](#extending-the-framework)
   * [How to Add a New Agent](#how-to-add-a-new-agent)
   * [How to Add New Eval Cases](#how-to-add-new-eval-cases)
@@ -38,14 +39,20 @@ evals-framework/
 │   ├── cli.py                    # Interactive REPL for manual testing
 │   └── tools/                    # Tool implementations (search, calculator, etc.)
 ├── evals/                        # Generic evals framework
+│   ├── app/                      # Web Reporting Application (REST API & Dashboard UI)
 │   ├── adapters/                 # Bridges to different agents (e.g. ExampleAgentAdapter)
 │   ├── configs/                  # Evaluation run configuration yaml files
 │   ├── core/                     # Core execution logic (Runner, Reporter, Datasets)
 │   ├── datasets/                 # Evaluation test cases (JSONL files)
 │   ├── scorers/                  # Evaluation criteria (Deterministic and LLM Judge)
-│   ├── cli.py                    # CLI tool for executing evals
+│   ├── store/                    # Local persistent storage engine (SQLite)
+│   ├── cli.py                    # CLI tool for executing evals and launching dashboard
 │   └── conftest.py               # Pytest plugin for running evals in CI/CD
-├── tests/                        # Framework unit tests
+├── tests/                        # Framework unit tests (store, app, adapters, runner, scorers)
+├── Dockerfile                    # Container definition
+├── docker-compose.yml            # Docker orchestration configuration
+├── start.sh                      # One-click startup script (seeds DB & launches UI)
+├── stop.sh                       # Shutdown script
 ├── pyproject.toml
 └── .env.example
 ```
@@ -54,7 +61,23 @@ evals-framework/
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### 🐳 1. Docker One-Click Launch (Recommended)
+
+Start the entire containerized framework and interactive Web Reporting Dashboard with one command:
+```bash
+./start.sh
+```
+* **Dashboard URL**: `http://localhost:8000`
+* **⚙️ Admin Panel**: Interactively write test cases, register custom agent adapters, configure evaluation models, launch evals in real-time, and monitor execution progress.
+* Automatically seeds evaluation database with initial model runs (`gpt-4o-mini` vs `claude-3-5-sonnet`) if empty.
+
+To stop or restart the dashboard and container:
+```bash
+./restart.sh  # Cleanly restarts services
+./stop.sh     # Stops all services
+```
+
+### 2. Install Dependencies
 
 ```bash
 git clone <repo-url> evals-framework

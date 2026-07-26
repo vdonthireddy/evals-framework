@@ -119,6 +119,14 @@ async def run_cmd(args: argparse.Namespace) -> int:
         reporter.save_markdown(str(md_path))
         logger.info(f"Markdown report saved to {md_path}")
         
+    # Save to persistent SQLite store if requested or default
+    if getattr(args, "store", False):
+        from evals.store.sqlite_store import SQLiteEvalStore
+        store_path = getattr(args, "store_db", "evals/results/eval_results.db")
+        store = SQLiteEvalStore(db_path=store_path)
+        store.save_run(report)
+        logger.info(f"Run report persisted to SQLite store at {store_path}")
+
     # JSON is always saved by the runner, but we can explicitly log it
     logger.info(f"JSON report saved to {config.output_dir}/{report.run_id}.json")
     
@@ -141,11 +149,11 @@ def dataset_info_cmd(args: argparse.Namespace) -> int:
 def compare_cmd(args: argparse.Namespace) -> int:
     """Execute the 'compare' command."""
     try:
-        with open(args.baseline, "r") as f:
+        with open(args.baseline, "r", encoding="utf-8") as f:
             b_data = json.load(f)
             b_report = EvalRunReport.model_validate(b_data)
             
-        with open(args.current, "r") as f:
+        with open(args.current, "r", encoding="utf-8") as f:
             c_data = json.load(f)
             c_report = EvalRunReport.model_validate(c_data)
             
@@ -155,6 +163,26 @@ def compare_cmd(args: argparse.Namespace) -> int:
     except Exception as e:
         logger.error(f"Failed to compare reports: {e}")
         return 1
+
+
+def report_cmd(args: argparse.Namespace) -> int:
+    """Execute the 'report' command to launch the web dashboard server."""
+    from evals.app.server import run_report_server
+    host = getattr(args, "host", "localhost")
+    port = getattr(args, "port", 8000)
+    db_path = getattr(args, "store_db", "evals/results/eval_results.db")
+    run_report_server(host=host, port=port, db_path=db_path)
+    return 0
+
+
+def report_main() -> None:
+    """Standalone CLI entry point for evals-report command."""
+    parser = argparse.ArgumentParser(description="Evals Reporting Dashboard Server")
+    parser.add_argument("--host", default="localhost", help="Host address to bind")
+    parser.add_argument("--port", type=int, default=8000, help="Port to listen on")
+    parser.add_argument("--store-db", default="evals/results/eval_results.db", help="Path to SQLite database")
+    args = parser.parse_args()
+    sys.exit(report_cmd(args))
 
 
 def main() -> None:
@@ -171,6 +199,8 @@ def main() -> None:
     run_parser.add_argument("--category", help="Category to filter by")
     run_parser.add_argument("--output", help="Override output directory")
     run_parser.add_argument("--format", choices=["terminal", "json", "markdown", "all"], default="terminal")
+    run_parser.add_argument("--store", action="store_true", help="Persist run results to local SQLite database")
+    run_parser.add_argument("--store-db", default="evals/results/eval_results.db", help="Path to SQLite database")
     
     # 'dataset-info' command
     ds_parser = subparsers.add_parser("dataset-info", help="Print dataset statistics")
@@ -181,6 +211,12 @@ def main() -> None:
     cmp_parser.add_argument("--baseline", required=True, help="Path to baseline JSON report")
     cmp_parser.add_argument("--current", required=True, help="Path to current JSON report")
     cmp_parser.add_argument("--format", default="terminal")
+
+    # 'report' command
+    rpt_parser = subparsers.add_parser("report", help="Launch interactive web evaluation dashboard")
+    rpt_parser.add_argument("--host", default="localhost", help="Host address to bind")
+    rpt_parser.add_argument("--port", type=int, default=8000, help="Port to listen on")
+    rpt_parser.add_argument("--store-db", default="evals/results/eval_results.db", help="Path to SQLite database")
     
     args = parser.parse_args()
     
@@ -192,6 +228,8 @@ def main() -> None:
         sys.exit(dataset_info_cmd(args))
     elif args.command == "compare":
         sys.exit(compare_cmd(args))
+    elif args.command == "report":
+        sys.exit(report_cmd(args))
 
 
 if __name__ == "__main__":

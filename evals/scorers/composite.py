@@ -66,13 +66,16 @@ class CompositeScorer(BaseScorer):
             if not result.passed:
                 all_passed = False
 
+        passed_count = sum(1 for r in results if r.passed)
+        is_passed = final_score >= self.threshold
+
         return ScoreResult(
             scorer_name=self.name,
             score=final_score,
-            passed=all_passed,  # Must pass ALL individual thresholds
+            passed=is_passed,
             threshold=self.threshold,
             details={"individual_results": [r.model_dump() for r in results]},
-            reasoning=f"Passed {sum(1 for r in results if r.passed)}/{len(results)} individual scorers.",
+            reasoning=f"Weighted score {final_score:.2f} ({passed_count}/{len(results)} individual criteria passed).",
         )
 
     # ── Factory methods ─────────────────────────────────────────────

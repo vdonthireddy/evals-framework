@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evals Framework - Model Evaluation & Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Vega & Vega-Lite Visualization Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-purple: #8b5cf6;
+            --accent-blue: #3b82f6;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        nav {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.25rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-main);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-purple);
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .section-tab {
+            display: none;
+        }
+
+        .section-tab.active {
+            display: block;
+        }
+
+        .grid-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .metric-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+        }
+
+        .metric-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.4rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge-error { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge-purple { background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        tr.clickable-row {
+            cursor: pointer;
+        }
+
+        tr.clickable-row:hover td {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus, select:focus, textarea:focus {
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            height: 14px;
+            overflow: hidden;
+            margin: 1rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .flex-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .chart-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .vega-chart-box {
+            width: 100%;
+            min-height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* MODAL STYLING */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .modal-close-btn {
+            position: absolute;
+            top: 1.25rem;
+            right: 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-close-btn:hover { color: white; }
+
+        .code-box {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            margin-top: 0.5rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        /* ADMIN SIDEBAR STUDIO LAYOUT */
+        .admin-studio-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 1.5rem;
+            min-height: 600px;
+        }
+
+        .admin-sidebar {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.25rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .admin-sidebar-header {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .admin-sub-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .admin-sub-btn:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+        }
+
+        .admin-sub-btn.active {
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            font-weight: 600;
+        }
+
+        .admin-subtab {
+            display: none;
+        }
+
+        .admin-subtab.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-area">
+            <div class="logo-badge">EVALS</div>
+            <h1>Model Evaluation & Analytics Dashboard</h1>
+        </div>
+        <nav>
+            <button class="nav-btn active" onclick="showTab('history')">Run History & Visuals</button>
+            <button class="nav-btn" onclick="showTab('compare')">Model Comparison</button>
+            <button class="nav-btn" onclick="showTab('details')">Run Details</button>
+            <button class="nav-btn" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd;" onclick="showTab('admin')">⚙️ Admin Control Panel</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- TAB 1: RUN HISTORY & VISUALS -->
+        <div id="tab-history" class="section-tab active">
+            <div class="grid-metrics">
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="metric-title">Total Evaluated Runs</div>
+                    <div class="metric-value" id="stat-total-runs">0</div>
+                    <div class="metric-sub">Stored in SQLite persistence</div>
+                </div>
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="metric-title">Average Pass Rate</div>
+                    <div class="metric-value" id="stat-avg-pass">0.0%</div>
+                    <div class="metric-sub">Across all models</div>
+                </div>
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="metric-title">Top Performing Model</div>
+                    <div class="metric-value" id="stat-top-model" style="font-size: 1.25rem;">-</div>
+                    <div class="metric-sub" id="stat-top-score">Highest average score</div>
+                </div>
+            </div>
+
+            <!-- VEGA-LITE CHARTS SECTION -->
+            <div class="flex-grid">
+                <div class="chart-card">
+                    <h3>📈 Model Pass Rate & Score Comparison (Vega-Lite)</h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">Comparative pass rates across evaluated LLM provider models.</p>
+                    <div id="vega-model-comparison" class="vega-chart-box"></div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>⚡ Speed vs Token Usage Trade-off (Vega-Lite)</h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">Latency (ms) vs average tokens consumed per run.</p>
+                    <div id="vega-latency-tokens" class="vega-chart-box"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Historical Evaluation Runs</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Run ID</th>
+                            <th>Timestamp</th>
+                            <th>Provider</th>
+                            <th>Model</th>
+                            <th>Cases</th>
+                            <th>Pass Rate</th>
+                            <th>Avg Score</th>
+                            <th>Avg Latency</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="runs-table-body">
+                        <tr><td colspan="9">Loading runs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 2: MODEL COMPARISON -->
+        <div id="tab-compare" class="section-tab">
+            <div class="card">
+                <h3>Head-to-Head Model Comparison</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; margin-bottom: 1.25rem;">Select two evaluation runs to compare speed, score accuracy, regressions, and prompt responses.</p>
+                <div style="display: flex; gap: 1.5rem; align-items: center;">
+                    <div style="flex: 1;">
+                        <label>MODEL A (Baseline)</label>
+                        <select id="select-run-a" onchange="runComparison()"></select>
+                    </div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--accent-purple); padding-top: 1rem;">VS</div>
+                    <div style="flex: 1;">
+                        <label>MODEL B (Candidate)</label>
+                        <select id="select-run-b" onchange="runComparison()"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="compare-results" style="display: none;">
+                <div class="grid-metrics">
+                    <div class="card" style="margin-bottom: 0;">
+                        <div class="metric-title">Pass Rate Delta</div>
+                        <div class="metric-value" id="comp-pass-delta">+0.0%</div>
+                        <div class="metric-sub">Model B vs Model A</div>
+                    </div>
+                    <div class="card" style="margin-bottom: 0;">
+                        <div class="metric-title">Average Score Delta</div>
+                        <div class="metric-value" id="comp-score-delta">+0.00</div>
+                        <div class="metric-sub">Model B vs Model A</div>
+                    </div>
+                    <div class="card" style="margin-bottom: 0;">
+                        <div class="metric-title">Regressions (A Pass &rarr; B Fail)</div>
+                        <div class="metric-value" id="comp-regressions" style="color: var(--error);">0</div>
+                        <div class="metric-sub">Cases where Model B broke</div>
+                    </div>
+                    <div class="card" style="margin-bottom: 0;">
+                        <div class="metric-title">Improvements (A Fail &rarr; B Pass)</div>
+                        <div class="metric-value" id="comp-improvements" style="color: var(--success);">0</div>
+                        <div class="metric-sub">Cases where Model B fixed</div>
+                    </div>
+                </div>
+
+                <!-- VEGA-LITE HEAD-TO-HEAD CHART -->
+                <div class="chart-card">
+                    <h3>📊 Side-by-Side Accuracy Delta (Vega-Lite)</h3>
+                    <div id="vega-compare-bar" class="vega-chart-box"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Case-by-Case Side-by-Side Matrix</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Model A Outcome</th>
+                                <th>Model B Outcome</th>
+                                <th>Score Delta</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compare-matrix-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: RUN DETAILS -->
+        <div id="tab-details" class="section-tab">
+            <div class="card">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Select Run ID:</label>
+                    <select id="select-detail-run" onchange="loadRunDetails()"></select>
+                </div>
+            </div>
+
+            <div id="run-detail-content" class="card">
+                <p style="color: var(--text-muted);">Select a run above to view detailed metrics.</p>
+            </div>
+        </div>
+
+        <!-- TAB 4: ADMIN CONTROL PANEL (SIDEBAR STUDIO LAYOUT) -->
+        <div id="tab-admin" class="section-tab">
+            <div class="admin-studio-layout">
+                <!-- LEFT SIDEBAR SUB-MENU -->
+                <div class="admin-sidebar">
+                    <div class="admin-sidebar-header">ADMIN STUDIO</div>
+                    <button class="admin-sub-btn active" onclick="showAdminSubTab('run-evals')">
+                        <span>🚀</span> Run Evals
+                    </button>
+                    <button class="admin-sub-btn" onclick="showAdminSubTab('models')">
+                        <span>🤖</span> Models
+                    </button>
+                    <button class="admin-sub-btn" onclick="showAdminSubTab('adapters')">
+                        <span>🔌</span> Agent Adapters
+                    </button>
+                    <button class="admin-sub-btn" onclick="showAdminSubTab('datasets')">
+                        <span>📝</span> Datasets & Cases
+                    </button>
+                </div>
+
+                <!-- RIGHT MAIN PANEL VIEWS -->
+                <div class="admin-main-panel">
+
+                    <!-- SUB-TAB 1: RUN EVALS -->
+                    <div id="admin-subtab-run-evals" class="admin-subtab active">
+                        <div class="card">
+                            <h2>🚀 Kick Off Evaluation Run</h2>
+                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">Select an agent architecture and a configured target model to run the evaluation live.</p>
+
+                            <div class="form-group">
+                                <label>Agent Architecture / Adapter</label>
+                                <select id="admin-eval-adapter"></select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Select Target LLM Model</label>
+                                <select id="admin-eval-model"></select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Dataset Directory / Path</label>
+                                <select id="admin-eval-dataset"></select>
+                            </div>
+
+                            <button class="btn-primary" onclick="launchEvalJob()" style="width: 100%;">Launch Evaluation Job</button>
+
+                            <!-- LIVE PROGRESS MONITOR -->
+                            <div id="eval-progress-card" style="display: none; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h4 id="progress-job-id">Job: -</h4>
+                                    <span id="progress-status-badge" class="badge badge-purple">Running</span>
+                                </div>
+
+                                <div class="progress-bar-container">
+                                    <div id="progress-bar-fill" class="progress-bar-fill"></div>
+                                </div>
+
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted);">
+                                    <span>Cases Completed: <strong id="progress-cases-count" style="color: var(--text-main);">0 / 0</strong></span>
+                                    <span id="progress-percent">0%</span>
+                                </div>
+
+                                <div id="progress-view-report" style="display: none; margin-top: 1rem;">
+                                    <button class="btn-primary" onclick="jumpToCompletedReport()" style="width: 100%; background: var(--success);">View Completed Report &rarr;</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUB-TAB 2: MODELS MANAGEMENT -->
+                    <div id="admin-subtab-models" class="admin-subtab">
+                        <div class="card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                <div>
+                                    <h2>🤖 Configured LLM Models</h2>
+                                    <p style="color: var(--text-muted); font-size: 0.85rem;">Manage local Ollama models and cloud LLM provider endpoints.</p>
+                                </div>
+                                <button class="btn-primary" onclick="openNewModelModal()">+ Add New Model</button>
+                            </div>
+
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Model ID / Name</th>
+                                        <th>Display Label</th>
+                                        <th>Provider</th>
+                                        <th>Server Endpoint</th>
+                                        <th>API Key Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="models-table-body">
+                                    <tr><td colspan="5">Loading models...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SUB-TAB 3: AGENT ADAPTERS -->
+                    <div id="admin-subtab-adapters" class="admin-subtab">
+                        <div class="card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                                <div>
+                                    <h2>🔌 Registered Agent Adapters</h2>
+                                    <p style="color: var(--text-muted); font-size: 0.85rem;">Model-agnostic agent architecture bridges registered with Evals.</p>
+                                </div>
+                            </div>
+
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Adapter ID</th>
+                                        <th>Adapter Name</th>
+                                        <th>Class Name</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adapters-table-body">
+                                    <tr><td colspan="4">Loading adapters...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- SUB-TAB 4: DATASETS & CASES -->
+                    <div id="admin-subtab-datasets" class="admin-subtab">
+                        <div class="card">
+                            <h2>📝 Write & Add New Test Case</h2>
+                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">Append a new prompt & ground-truth validation criteria directly into dataset `.jsonl` files.</p>
+
+                            <div style="display: flex; gap: 1rem;">
+                                <div class="form-group" style="flex: 1;">
+                                    <label>Target Dataset File</label>
+                                    <input type="text" id="case-dataset-file" value="unit/custom.jsonl" placeholder="e.g. unit/custom.jsonl">
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label>Case ID</label>
+                                    <input type="text" id="case-id" placeholder="e.g. unit-custom-01">
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label>Category</label>
+                                    <select id="case-category">
+                                        <option value="unit">unit</option>
+                                        <option value="integration">integration</option>
+                                        <option value="e2e">e2e</option>
+                                        <option value="regression">regression</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Input Prompt</label>
+                                <textarea id="case-input" rows="2" placeholder="e.g. What is the weather in Tokyo right now?"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Expected Tool Calls (comma-separated, optional)</label>
+                                <input type="text" id="case-tools" placeholder="e.g. get_weather, calculator">
+                            </div>
+
+                            <button class="btn-primary" onclick="submitTestCase()" style="width: 100%;">Add Test Case to Dataset</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- CASE DETAIL INSPECTOR MODAL -->
+    <div id="case-detail-modal" class="modal-overlay" onclick="if(event.target===this) closeModal();">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal()">&times;</button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- ADD NEW MODEL MODAL -->
+    <div id="new-model-modal" class="modal-overlay" onclick="if(event.target===this) closeModelModal();">
+        <div class="modal-card" style="max-width: 600px;">
+            <button class="modal-close-btn" onclick="closeModelModal()">&times;</button>
+            <h2 style="margin-bottom: 0.5rem;">🤖 Add / Register New Model</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Register a local Ollama model string or cloud provider LLM endpoint.</p>
+
+            <div class="form-group">
+                <label>Model ID / Name / String (e.g. llama3.2, gpt-4o, qwen2.5-coder:7b)</label>
+                <input type="text" id="modal-model-id" placeholder="e.g. llama3.2">
+            </div>
+
+            <div class="form-group">
+                <label>Display Label</label>
+                <input type="text" id="modal-model-name" placeholder="e.g. Ollama Llama 3.2 (Local)">
+            </div>
+
+            <div class="form-group">
+                <label>Provider</label>
+                <select id="modal-model-provider" onchange="autoFillServerUrl()">
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="gemini">Google Gemini</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Server Base URL</label>
+                <input type="text" id="modal-model-server" value="http://localhost:11434/v1" placeholder="e.g. http://localhost:11434/v1">
+            </div>
+
+            <div class="form-group">
+                <label>API Key / Secret (Optional for local Ollama)</label>
+                <input type="text" id="modal-model-key" placeholder="e.g. sk-proj-... (leave blank for local Ollama)">
+            </div>
+
+            <button class="btn-primary" onclick="submitModalNewModel()" style="width: 100%; margin-top: 1rem;">Register Model</button>
+        </div>
+    </div>
+
+    <script>
+        let cachedRuns = [];
+        let cachedModels = [];
+        let cachedAdapters = [];
+        let currentRunReport = null;
+        let activeJobId = null;
+        let progressInterval = null;
+
+        async function fetchRuns() {
+            try {
+                const res = await fetch('/api/runs');
+                cachedRuns = await res.json();
+                renderHistoryTable();
+                renderVegaCharts();
+                populateDropdowns();
+            } catch (err) {
+                console.error("Failed to fetch runs:", err);
+            }
+        }
+
+        function renderVegaCharts() {
+            if (!cachedRuns || cachedRuns.length === 0) return;
+
+            // 1. Vega-Lite Bar Chart: Model Pass Rates & Average Scores
+            const chartData = cachedRuns.map(r => ({
+                model: `${r.model} (${r.provider})`,
+                pass_rate: Math.round((r.pass_rate || 0) * 100),
+                avg_score: Number((r.average_score || 0).toFixed(2))
+            }));
+
+            const spec1 = {
+                $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+                width: 'container',
+                height: 240,
+                background: 'transparent',
+                data: { values: chartData },
+                mark: { type: 'bar', cornerRadiusEnd: 6, tooltip: true },
+                encoding: {
+                    x: { field: 'model', type: 'nominal', title: 'Model (Provider)', axis: { labelAngle: -15, labelColor: '#94a3b8', titleColor: '#94a3b8' } },
+                    y: { field: 'pass_rate', type: 'quantitative', title: 'Pass Rate (%)', scale: { domain: [0, 100] }, axis: { labelColor: '#94a3b8', titleColor: '#94a3b8' } },
+                    color: { field: 'model', type: 'nominal', legend: null, scale: { range: ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'] } }
+                },
+                config: { view: { stroke: 'transparent' }, axis: { domainColor: 'rgba(255,255,255,0.1)', gridColor: 'rgba(255,255,255,0.05)' } }
+            };
+            vegaEmbed('#vega-model-comparison', spec1, { actions: false });
+
+            // 2. Vega-Lite Scatter Plot: Latency vs Token Usage
+            const scatterData = cachedRuns.map(r => ({
+                model: r.model,
+                latency: Math.round(r.avg_latency_ms || 0),
+                tokens: Math.round(r.avg_tokens || 0),
+                pass_rate: Math.round((r.pass_rate || 0) * 100)
+            }));
+
+            const spec2 = {
+                $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+                width: 'container',
+                height: 240,
+                background: 'transparent',
+                data: { values: scatterData },
+                mark: { type: 'circle', size: 180, tooltip: true },
+                encoding: {
+                    x: { field: 'latency', type: 'quantitative', title: 'Avg Latency (ms)', axis: { labelColor: '#94a3b8', titleColor: '#94a3b8' } },
+                    y: { field: 'tokens', type: 'quantitative', title: 'Avg Token Count', axis: { labelColor: '#94a3b8', titleColor: '#94a3b8' } },
+                    color: { field: 'model', type: 'nominal', title: 'Model', scale: { range: ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'] } }
+                },
+                config: { view: { stroke: 'transparent' }, axis: { domainColor: 'rgba(255,255,255,0.1)', gridColor: 'rgba(255,255,255,0.05)' } }
+            };
+            vegaEmbed('#vega-latency-tokens', spec2, { actions: false });
+        }
+
+        async function runComparison() {
+            const runA = document.getElementById('select-run-a').value;
+            const runB = document.getElementById('select-run-b').value;
+            if (!runA || !runB) return;
+
+            try {
+                const res = await fetch(`/api/compare?run_a=${runA}&run_b=${runB}`);
+                const data = await res.json();
+                
+                document.getElementById('compare-results').style.display = 'block';
+
+                const pDelta = (data.deltas.pass_rate_delta * 100).toFixed(1);
+                document.getElementById('comp-pass-delta').innerText = (pDelta >= 0 ? '+' : '') + pDelta + '%';
+                document.getElementById('comp-pass-delta').style.color = pDelta >= 0 ? 'var(--success)' : 'var(--error)';
+
+                const sDelta = data.deltas.avg_score_delta.toFixed(3);
+                document.getElementById('comp-score-delta').innerText = (sDelta >= 0 ? '+' : '') + sDelta;
+                document.getElementById('comp-score-delta').style.color = sDelta >= 0 ? 'var(--success)' : 'var(--error)';
+
+                document.getElementById('comp-regressions').innerText = data.deltas.regressions_count;
+                document.getElementById('comp-improvements').innerText = data.deltas.improvements_count;
+
+                // 3. Vega-Lite Head-to-Head Comparison Bar Chart
+                const compChartData = [
+                    { model: `Model A: ${data.run_a.model}`, metric: 'Pass Rate (%)', value: Math.round(data.run_a.pass_rate * 100) },
+                    { model: `Model B: ${data.run_b.model}`, metric: 'Pass Rate (%)', value: Math.round(data.run_b.pass_rate * 100) },
+                    { model: `Model A: ${data.run_a.model}`, metric: 'Avg Score (x100)', value: Math.round(data.run_a.avg_score * 100) },
+                    { model: `Model B: ${data.run_b.model}`, metric: 'Avg Score (x100)', value: Math.round(data.run_b.avg_score * 100) }
+                ];
+
+                const specComp = {
+                    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+                    width: 'container',
+                    height: 220,
+                    background: 'transparent',
+                    data: { values: compChartData },
+                    mark: { type: 'bar', cornerRadiusEnd: 6, tooltip: true },
+                    encoding: {
+                        x: { field: 'metric', type: 'nominal', title: null, axis: { labelColor: '#94a3b8' } },
+                        y: { field: 'value', type: 'quantitative', title: 'Value', scale: { domain: [0, 100] }, axis: { labelColor: '#94a3b8' } },
+                        color: { field: 'model', type: 'nominal', title: 'Model', scale: { range: ['#3b82f6', '#8b5cf6'] } },
+                        xOffset: { field: 'model' }
+                    },
+                    config: { view: { stroke: 'transparent' }, axis: { domainColor: 'rgba(255,255,255,0.1)', gridColor: 'rgba(255,255,255,0.05)' } }
+                };
+                vegaEmbed('#vega-compare-bar', specComp, { actions: false });
+
+                const tbody = document.getElementById('compare-matrix-body');
+                tbody.innerHTML = data.cases.map(c => `
+                    <tr>
+                        <td><code>${c.case_id}</code></td>
+                        <td><span class="badge ${c.run_a.passed ? 'badge-success' : 'badge-error'}">${c.run_a.passed ? 'PASS' : 'FAIL'} (${c.run_a.score.toFixed(2)})</span></td>
+                        <td><span class="badge ${c.run_b.passed ? 'badge-success' : 'badge-error'}">${c.run_b.passed ? 'PASS' : 'FAIL'} (${c.run_b.score.toFixed(2)})</span></td>
+                        <td style="color: ${c.score_delta >= 0 ? 'var(--success)' : 'var(--error)'}; font-weight: 600;">${c.score_delta >= 0 ? '+' : ''}${c.score_delta.toFixed(2)}</td>
+                        <td><button class="nav-btn" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="alert('Prompt: ${c.input.replace(/'/g, "\\'")}\\n\\nModel A Output:\\n${c.run_a.output.replace(/'/g, "\\'")}\\n\\nModel B Output:\\n${c.run_b.output.replace(/'/g, "\\'")}')">Inspect Diff</button></td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error("Comparison error:", err);
+            }
+        }
+
+        async function fetchAdminData() {
+            try {
+                const dsRes = await fetch('/api/admin/datasets');
+                const datasets = await dsRes.json();
+                const dsSelect = document.getElementById('admin-eval-dataset');
+                dsSelect.innerHTML = '<option value="evals/datasets">All Datasets (evals/datasets)</option>' +
+                    datasets.map(d => `<option value="${d.full_path}">${d.name} (${d.case_count} cases)</option>`).join('');
+
+                const adRes = await fetch('/api/admin/adapters');
+                cachedAdapters = await adRes.json();
+                const adSelect = document.getElementById('admin-eval-adapter');
+                adSelect.innerHTML = cachedAdapters.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+
+                renderAdaptersTable();
+
+                const mdRes = await fetch('/api/admin/models');
+                cachedModels = await mdRes.json();
+                const mdSelect = document.getElementById('admin-eval-model');
+                mdSelect.innerHTML = cachedModels.map(m => `<option value="${m.id}" data-provider="${m.provider}">${m.name} (${m.provider})</option>`).join('');
+
+                renderModelsTable();
+            } catch (err) {
+                console.error("Failed to fetch admin data:", err);
+            }
+        }
+
+        function renderModelsTable() {
+            const tbody = document.getElementById('models-table-body');
+            if (!cachedModels || cachedModels.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">No models registered.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = cachedModels.map(m => `
+                <tr>
+                    <td><code>${m.id}</code></td>
+                    <td><strong>${m.name}</strong></td>
+                    <td><span class="badge badge-purple">${m.provider}</span></td>
+                    <td style="font-family:monospace; font-size:0.85rem;">${m.server_url || (m.provider === 'ollama' ? 'http://localhost:11434/v1' : 'Standard Endpoint')}</td>
+                    <td><span class="badge ${m.api_key ? 'badge-success' : 'badge-warning'}">${m.api_key ? 'Configured' : (m.provider === 'ollama' ? 'Local / Unneeded' : 'Environment')}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderAdaptersTable() {
+            const tbody = document.getElementById('adapters-table-body');
+            if (!cachedAdapters || cachedAdapters.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4">No adapters registered.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = cachedAdapters.map(a => `
+                <tr>
+                    <td><code>${a.id}</code></td>
+                    <td><strong>${a.name}</strong></td>
+                    <td><code>${a.class_name || 'AgentAdapter'}</code></td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">${a.description || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderHistoryTable() {
+            const tbody = document.getElementById('runs-table-body');
+            if (cachedRuns.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9">No stored runs found. Execute `evals-run --store` or use the Admin panel to launch a run.</td></tr>';
+                return;
+            }
+
+            document.getElementById('stat-total-runs').innerText = cachedRuns.length;
+            const avgPass = (cachedRuns.reduce((acc, r) => acc + (r.pass_rate || 0), 0) / cachedRuns.length * 100).toFixed(1);
+            document.getElementById('stat-avg-pass').innerText = avgPass + '%';
+
+            const topRun = [...cachedRuns].sort((a, b) => (b.average_score || 0) - (a.average_score || 0))[0];
+            if (topRun) {
+                document.getElementById('stat-top-model').innerText = `${topRun.model} (${topRun.provider})`;
+                document.getElementById('stat-top-score').innerText = `Avg Score: ${(topRun.average_score || 0).toFixed(3)}`;
+            }
+
+            tbody.innerHTML = cachedRuns.map(r => `
+                <tr class="clickable-row" onclick="selectRunAndInspect('${r.run_id}')">
+                    <td><code>${r.run_id}</code></td>
+                    <td>${new Date(r.timestamp).toLocaleString()}</td>
+                    <td><span class="badge badge-purple">${r.provider}</span></td>
+                    <td><strong>${r.model}</strong></td>
+                    <td>${r.total_cases}</td>
+                    <td><span class="badge ${r.pass_rate >= 0.8 ? 'badge-success' : 'badge-error'}">${((r.pass_rate || 0) * 100).toFixed(1)}%</span></td>
+                    <td>${(r.average_score || 0).toFixed(3)}</td>
+                    <td>${(r.avg_latency_ms || 0).toFixed(0)} ms</td>
+                    <td>
+                        <button class="nav-btn" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3);" onclick="event.stopPropagation(); deleteRun('${r.run_id}')">🗑️ Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function deleteRun(runId) {
+            if (!confirm(`Are you sure you want to delete evaluation run '${runId}'?`)) return;
+
+            try {
+                const res = await fetch(`/api/runs/${runId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    fetchRuns();
+                } else {
+                    alert("Failed to delete run: " + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert("Error deleting run: " + err);
+            }
+        }
+
+        function selectRunAndInspect(runId) {
+            document.getElementById('select-detail-run').value = runId;
+            showTab('details');
+        }
+
+        function populateDropdowns() {
+            const opts = cachedRuns.map(r => `<option value="${r.run_id}">${r.model} (${r.provider}) - ${r.run_id}</option>`).join('');
+            document.getElementById('select-run-a').innerHTML = opts;
+            document.getElementById('select-run-b').innerHTML = opts;
+            document.getElementById('select-detail-run').innerHTML = opts;
+
+            if (cachedRuns.length >= 2) {
+                document.getElementById('select-run-b').selectedIndex = 1;
+            }
+        }
+
+        async function loadRunDetails() {
+            const runId = document.getElementById('select-detail-run').value;
+            if (!runId) return;
+
+            try {
+                const res = await fetch(`/api/runs/${runId}`);
+                currentRunReport = await res.json();
+
+                const container = document.getElementById('run-detail-content');
+                container.innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <h2>Run ID: <code>${currentRunReport.run_id}</code></h2>
+                        <p style="color: var(--text-muted); margin-top: 0.25rem;">Provider: <strong>${currentRunReport.agent_info.provider}</strong> | Model: <strong>${currentRunReport.agent_info.model}</strong></p>
+                    </div>
+
+                    <div class="grid-metrics">
+                        <div class="card" style="margin-bottom: 0;">
+                            <div class="metric-title">Total Cases</div>
+                            <div class="metric-value">${currentRunReport.summary.total_cases}</div>
+                        </div>
+                        <div class="card" style="margin-bottom: 0;">
+                            <div class="metric-title">Passed Cases</div>
+                            <div class="metric-value" style="color: var(--success);">${currentRunReport.summary.passed}</div>
+                        </div>
+                        <div class="card" style="margin-bottom: 0;">
+                            <div class="metric-title">Failed / Errors</div>
+                            <div class="metric-value" style="color: var(--error);">${currentRunReport.summary.failed} / ${currentRunReport.summary.error_count}</div>
+                        </div>
+                        <div class="card" style="margin-bottom: 0;">
+                            <div class="metric-title">Average Score</div>
+                            <div class="metric-value">${currentRunReport.summary.average_score.toFixed(3)}</div>
+                        </div>
+                    </div>
+
+                    <h3>Evaluated Cases Details (Click row to inspect prompt, response & tokens)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Input Prompt</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Tokens</th>
+                                <th>Latency</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${currentRunReport.results.map((r, idx) => `
+                                <tr class="clickable-row" onclick="inspectCaseDetail(${idx})">
+                                    <td><code>${r.case_id}</code></td>
+                                    <td style="max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.case_input}</td>
+                                    <td><span class="badge ${r.overall_passed ? 'badge-success' : 'badge-error'}">${r.overall_passed ? 'PASSED' : 'FAILED'}</span></td>
+                                    <td>${r.overall_score.toFixed(2)}</td>
+                                    <td><strong>${r.agent_output && r.agent_output.total_tokens ? r.agent_output.total_tokens : '-'}</strong></td>
+                                    <td>${r.agent_output && r.agent_output.total_latency_ms ? Math.round(r.agent_output.total_latency_ms) + ' ms' : '-'}</td>
+                                    <td><button class="nav-btn" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; background: rgba(139,92,246,0.2); color:#c4b5fd;">Inspect Details</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                console.error("Detail error:", err);
+            }
+        }
+
+        function inspectCaseDetail(caseIndex) {
+            if (!currentRunReport || !currentRunReport.results[caseIndex]) return;
+            const res = currentRunReport.results[caseIndex];
+            const out = res.agent_output || {};
+
+            const content = document.getElementById('modal-content');
+            content.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <h2 style="display:inline-block; margin-right: 0.75rem;">Case: <code>${res.case_id}</code></h2>
+                        <span class="badge ${res.overall_passed ? 'badge-success' : 'badge-error'}" style="font-size: 0.9rem;">${res.overall_passed ? 'PASSED' : 'FAILED'}</span>
+                    </div>
+                </div>
+
+                <div class="grid-metrics" style="margin-bottom: 1.5rem;">
+                    <div class="card" style="margin-bottom:0; padding:1rem;">
+                        <div class="metric-title">Overall Score</div>
+                        <div class="metric-value" style="font-size: 1.4rem;">${res.overall_score.toFixed(2)}</div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:1rem;">
+                        <div class="metric-title">Total Tokens</div>
+                        <div class="metric-value" style="font-size: 1.4rem; color: var(--accent-blue);">${out.total_tokens || 'N/A'}</div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:1rem;">
+                        <div class="metric-title">Latency</div>
+                        <div class="metric-value" style="font-size: 1.4rem;">${out.total_latency_ms ? Math.round(out.total_latency_ms) + ' ms' : 'N/A'}</div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:1rem;">
+                        <div class="metric-title">Agent Steps</div>
+                        <div class="metric-value" style="font-size: 1.4rem;">${out.total_steps || 0}</div>
+                    </div>
+                </div>
+
+                <!-- PROMPT -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">
+                        📥 ${res.turns && res.turns.length > 0 ? 'Input Prompts (Multi-Turn Conversation)' : 'Input Prompt'}
+                    </h3>
+                    <div class="code-box">${
+                        res.turns && res.turns.length > 0 ?
+                            res.turns.map((t, i) => `<div><strong>Turn ${i+1}:</strong> ${t.input}</div>`).join('<div style="margin-top:0.4rem;"></div>') :
+                            (res.case_input === 'ignored because turns exist' ? 'Multi-turn stateful conversation' : res.case_input)
+                    }</div>
+                </div>
+
+                <!-- EXPECTED OUTPUT & GROUND TRUTH -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">🎯 Expected Output / Ground Truth Criteria</h3>
+                    <div class="code-box" style="border-color: rgba(16, 185, 129, 0.3);">
+                        ${res.expected_output ? `<div><strong>Expected Response:</strong> ${res.expected_output}</div>` : ''}
+                        ${res.expected_outcome ? `<div style="${res.expected_output ? 'margin-top:0.4rem;' : ''}"><strong>Expected Outcome:</strong> ${res.expected_outcome}</div>` : ''}
+                        ${res.expected_tool_calls && res.expected_tool_calls.length > 0 ? `<div style="margin-top:0.4rem;"><strong>Expected Tool Calls:</strong> ${JSON.stringify(res.expected_tool_calls, null, 2)}</div>` : ''}
+                        ${(!res.expected_output && !res.expected_outcome && (!res.expected_tool_calls || res.expected_tool_calls.length === 0)) ? '<span style="color: var(--text-muted);">No specific ground-truth output constraint specified for this case (evaluated against standard safety & trajectory heuristics).</span>' : ''}
+                    </div>
+                </div>
+
+                <!-- RESPONSE -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">📤 LLM / Agent Actual Final Response</h3>
+                    <div class="code-box" style="border-color: rgba(59, 130, 246, 0.3);">${out.output || res.error || 'No output recorded'}</div>
+                </div>
+
+                <!-- STEPS & TOOL CALLS TRACE -->
+                ${out.steps && out.steps.length > 0 ? `
+                    <div style="margin-bottom: 1.5rem;">
+                        <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 0.5rem;">🔧 Agent Step Trace & Tool Calls</h3>
+                        ${out.steps.map(s => `
+                            <div style="background: rgba(15,23,42,0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.6rem;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
+                                    <strong>Step ${s.step_number}: <span style="color: var(--accent-purple);">${s.action}</span> ${s.tool_name ? `(tool: ${s.tool_name})` : ''}</strong>
+                                </div>
+                                ${s.reasoning ? `<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom:0.4rem;"><em>Reasoning:</em> ${s.reasoning}</p>` : ''}
+                                ${s.tool_args ? `<div style="font-family:monospace; font-size:0.8rem; color: #93c5fd;">Args: ${JSON.stringify(s.tool_args)}</div>` : ''}
+                                ${s.tool_result ? `<div style="font-family:monospace; font-size:0.8rem; color: #a7f3d0; margin-top:0.2rem;">Result: ${JSON.stringify(s.tool_result)}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+
+                <!-- SCORER BREAKDOWN -->
+                <div>
+                    <h3 style="color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 0.5rem;">🎯 Scorer Breakdown</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Scorer Name</th>
+                                <th>Score</th>
+                                <th>Threshold</th>
+                                <th>Passed</th>
+                                <th>Reasoning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(() => {
+                                let allScorerRows = [];
+                                (res.scores || []).forEach(s => {
+                                    allScorerRows.push(s);
+                                    if (s.details && s.details.individual_results && Array.isArray(s.details.individual_results)) {
+                                        s.details.individual_results.forEach(sub => {
+                                            allScorerRows.push({
+                                                scorer_name: `└─ ${sub.scorer_name}`,
+                                                score: sub.score,
+                                                threshold: sub.threshold,
+                                                passed: sub.passed,
+                                                reasoning: sub.reasoning,
+                                                is_sub: true
+                                            });
+                                        });
+                                    }
+                                });
+                                return allScorerRows.map(s => `
+                                    <tr style="${s.is_sub ? 'background: rgba(0,0,0,0.15);' : 'font-weight: 600;'}">
+                                        <td style="${s.is_sub ? 'padding-left: 1.5rem;' : ''}"><strong>${s.scorer_name}</strong></td>
+                                        <td>${typeof s.score === 'number' ? s.score.toFixed(2) : '-'}</td>
+                                        <td>${typeof s.threshold === 'number' ? s.threshold.toFixed(2) : '-'}</td>
+                                        <td><span class="badge ${s.passed ? 'badge-success' : 'badge-error'}">${s.passed ? 'PASS' : 'FAIL'}</span></td>
+                                        <td style="font-size: 0.85rem; color: var(--text-muted);">${s.reasoning || '-'}</td>
+                                    </tr>
+                                `).join('');
+                            })()}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('case-detail-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('case-detail-modal').style.display = 'none';
+        }
+
+        function openNewModelModal() {
+            document.getElementById('new-model-modal').style.display = 'flex';
+        }
+
+        function closeModelModal() {
+            document.getElementById('new-model-modal').style.display = 'none';
+        }
+
+        function autoFillServerUrl() {
+            const provider = document.getElementById('modal-model-provider').value;
+            const serverInput = document.getElementById('modal-model-server');
+            if (provider === 'ollama') {
+                serverInput.value = 'http://localhost:11434/v1';
+            } else if (provider === 'openai') {
+                serverInput.value = 'https://api.openai.com/v1';
+            } else if (provider === 'anthropic') {
+                serverInput.value = 'https://api.anthropic.com';
+            } else if (provider === 'gemini') {
+                serverInput.value = 'https://generativelanguage.googleapis.com';
+            }
+        }
+
+        async function launchEvalJob() {
+            const adapter_id = document.getElementById('admin-eval-adapter').value;
+            const modelSelect = document.getElementById('admin-eval-model');
+            const model = modelSelect.value;
+            const selectedOpt = modelSelect.options[modelSelect.selectedIndex];
+            const provider = selectedOpt ? selectedOpt.getAttribute('data-provider') || 'openai' : 'openai';
+            const dataset_path = document.getElementById('admin-eval-dataset').value;
+
+            try {
+                const res = await fetch('/api/admin/evals/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ adapter_id, provider, model, dataset_path, concurrency: 2 })
+                });
+                const data = await res.json();
+                if (data.job_id) {
+                    activeJobId = data.job_id;
+                    document.getElementById('eval-progress-card').style.display = 'block';
+                    document.getElementById('progress-job-id').innerText = `Job: ${activeJobId}`;
+                    document.getElementById('progress-view-report').style.display = 'none';
+                    if (progressInterval) clearInterval(progressInterval);
+                    progressInterval = setInterval(pollEvalProgress, 1000);
+                }
+            } catch (err) {
+                alert("Failed to launch job: " + err);
+            }
+        }
+
+        async function submitModalNewModel() {
+            const id = document.getElementById('modal-model-id').value;
+            const name = document.getElementById('modal-model-name').value;
+            const provider = document.getElementById('modal-model-provider').value;
+            const server_url = document.getElementById('modal-model-server').value;
+            const api_key = document.getElementById('modal-model-key').value;
+
+            if (!id || !name) {
+                alert("Model ID and Display Label are required.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/models', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, name, provider, server_url, api_key })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Model '${name}' successfully added to registry!`);
+                    closeModelModal();
+                    document.getElementById('modal-model-id').value = '';
+                    document.getElementById('modal-model-name').value = '';
+                    fetchAdminData();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert("Failed to add model: " + err);
+            }
+        }
+
+        async function pollEvalProgress() {
+            if (!activeJobId) return;
+            try {
+                const res = await fetch(`/api/admin/evals/progress/${activeJobId}`);
+                const data = await res.json();
+
+                const total = data.total_cases || 1;
+                const completed = data.completed_cases || 0;
+                const pct = Math.min(100, Math.round((completed / total) * 100));
+
+                document.getElementById('progress-bar-fill').style.width = pct + '%';
+                document.getElementById('progress-percent').innerText = pct + '%';
+                document.getElementById('progress-cases-count').innerText = `${completed} / ${total}`;
+
+                if (data.status === 'completed') {
+                    clearInterval(progressInterval);
+                    document.getElementById('progress-status-badge').innerText = 'Completed';
+                    document.getElementById('progress-status-badge').className = 'badge badge-success';
+                    document.getElementById('progress-view-report').style.display = 'block';
+                    fetchRuns();
+                } else if (data.status === 'failed') {
+                    clearInterval(progressInterval);
+                    document.getElementById('progress-status-badge').innerText = 'Failed';
+                    document.getElementById('progress-status-badge').className = 'badge badge-error';
+                }
+            } catch (err) {
+                console.error("Progress poll error:", err);
+            }
+        }
+
+        async function submitTestCase() {
+            const file = document.getElementById('case-dataset-file').value;
+            const id = document.getElementById('case-id').value;
+            const category = document.getElementById('case-category').value;
+            const input = document.getElementById('case-input').value;
+            const toolsRaw = document.getElementById('case-tools').value;
+
+            if (!id || !input) {
+                alert("Case ID and Input Prompt are required.");
+                return;
+            }
+
+            const expected_tool_calls = toolsRaw ? toolsRaw.split(',').map(t => t.strip ? t.strip() : t.trim()) : [];
+
+            const payload = {
+                dataset_name: file,
+                case: {
+                    id: id,
+                    category: category,
+                    input: input,
+                    expected_tool_calls: expected_tool_calls
+                }
+            };
+
+            try {
+                const res = await fetch('/api/admin/datasets/cases', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Test case '${id}' added successfully to ${file}!`);
+                    document.getElementById('case-id').value = '';
+                    document.getElementById('case-input').value = '';
+                    fetchAdminData();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert("Failed to submit test case: " + err);
+            }
+        }
+
+        function jumpToCompletedReport() {
+            fetchRuns().then(() => showTab('history'));
+        }
+
+        function showAdminSubTab(subName) {
+            document.querySelectorAll('.admin-subtab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.admin-sub-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`admin-subtab-${subName}`).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.section-tab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'history') fetchRuns();
+            if (tabName === 'compare') runComparison();
+            if (tabName === 'details') loadRunDetails();
+            if (tabName === 'admin') fetchAdminData();
+        }
+
+        fetchRuns();
+    </script>
+</body>
+</html>

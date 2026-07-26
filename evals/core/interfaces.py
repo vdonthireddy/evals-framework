@@ -120,6 +120,10 @@ class EvalResult(BaseModel):
 
     case_id: str
     case_input: str
+    turns: Optional[list[Turn]] = None
+    expected_output: Optional[str] = None
+    expected_tool_calls: Optional[list[dict[str, Any]]] = None
+    expected_outcome: Optional[str] = None
     agent_output: AgentOutput
     scores: list[ScoreResult] = Field(default_factory=list)
     overall_passed: bool = False

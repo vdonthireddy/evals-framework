@@ -156,6 +156,10 @@ class EvalRunner:
                 return EvalResult(
                     case_id=eval_case.id,
                     case_input=eval_case.input,
+                    turns=eval_case.turns,
+                    expected_output=eval_case.expected_output,
+                    expected_tool_calls=eval_case.expected_tool_calls,
+                    expected_outcome=eval_case.expected_outcome,
                     agent_output=output,
                     scores=[score_result],
                     overall_passed=score_result.passed,
@@ -173,6 +177,10 @@ class EvalRunner:
                 return EvalResult(
                     case_id=case.id,
                     case_input=case.input,
+                    turns=case.turns,
+                    expected_output=case.expected_output,
+                    expected_tool_calls=case.expected_tool_calls,
+                    expected_outcome=case.expected_outcome,
                     agent_output=empty_output,
                     scores=[],
                     overall_passed=False,
@@ -260,6 +268,10 @@ class EvalRunner:
         return EvalResult(
             case_id=case.id,
             case_input=case.input,
+            turns=case.turns,
+            expected_output=case.expected_output,
+            expected_tool_calls=case.expected_tool_calls,
+            expected_outcome=case.expected_outcome,
             agent_output=empty_output,
             scores=[],
             overall_passed=False,

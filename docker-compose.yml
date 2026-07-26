@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  evals-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: evals-framework-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./evals/results:/app/evals/results
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped

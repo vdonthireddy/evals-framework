@@ -138,7 +138,7 @@ class TaskPlanner:
 
     async def _call_llm(self, messages: list[dict[str, Any]]) -> str:
         """Call the LLM provider and return the raw text response."""
-        if self._provider == "openai":
+        if self._provider in ("openai", "ollama"):
             response = await self._llm_client.chat.completions.create(
                 model=self._model,
                 messages=messages,
