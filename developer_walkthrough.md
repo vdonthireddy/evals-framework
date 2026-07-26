@@ -488,10 +488,10 @@ classDiagram
     }
 
     class EvalRunner {
-        +config: EvalConfig
+        +adapter: AgentAdapter
         +dataset: EvalDataset
-        +scorers: list[BaseScorer]
-        +run(adapter: AgentAdapter) EvalRunReport
+        +config: EvalConfig
+        +run() EvalRunReport
     }
 
     class EvalDataset {
@@ -622,8 +622,8 @@ adapter = LangChainAdapter(
 )
 
 # Pass directly to EvalRunner!
-runner = EvalRunner(config=config, dataset=dataset, scorers=scorers)
-report = await runner.run(adapter)
+runner = EvalRunner(adapter=adapter, dataset=dataset, config=config)
+report = await runner.run()
 ```
 
 ### 🔄 Generic LangChain Adapter Sequence Diagram

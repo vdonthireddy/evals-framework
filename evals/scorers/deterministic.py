@@ -51,8 +51,8 @@ class ToolSelectionScorer(BaseScorer):
         max_count = max(len(expected_names), len(actual_names), 1)
         base_score = matches / max_count
 
-        # Order bonus
-        if expected_names == actual_names[:len(expected_names)]:
+        # Order bonus (only if expected_names is non-empty)
+        if expected_names and expected_names == actual_names[:len(expected_names)]:
             base_score = min(1.0, base_score + 0.1)
 
         return ScoreResult(
@@ -94,14 +94,13 @@ class ToolArgumentScorer(BaseScorer):
         actual_calls = [step for step in output.steps if step.action == "use_tool" and step.tool_name]
 
         for expected in case.expected_tool_calls:
-            expected_args = expected.get("arguments", {})
+            expected_args = expected.get("arguments") or expected.get("tool_args") or expected.get("args") or {}
             if not expected_args:
                 continue
 
             tool_name = expected.get("tool_name")
             
             # Find the first actual call for this tool that we haven't matched yet
-            # (Simplified matching: just finds the first matching tool name)
             matching_actual = None
             for actual in actual_calls:
                 if actual.tool_name == tool_name:
@@ -123,14 +122,16 @@ class ToolArgumentScorer(BaseScorer):
                     
                 actual_v = actual_args[arg_k]
                 
-                # Match logic
+                # Match logic with type normalization
                 if isinstance(arg_v, str) and isinstance(actual_v, str):
-                    if arg_v.strip().lower() in actual_v.strip().lower():
+                    if arg_v.strip().lower() in actual_v.strip().lower() or actual_v.strip().lower() in arg_v.strip().lower():
                         matched_args += 1
                     else:
                         details.append({"tool": tool_name, "arg": arg_k, "expected": arg_v, "actual": actual_v})
+                elif (isinstance(arg_v, (int, float, str)) and isinstance(actual_v, (int, float, str))) and str(arg_v).strip().lower() == str(actual_v).strip().lower():
+                    matched_args += 1
                 else:
-                    # Exact match for bool, int, float, list, dict
+                    # Exact match for bool, list, dict
                     if arg_v == actual_v:
                         matched_args += 1
                     else:
@@ -295,9 +296,9 @@ class ContainsKeywordsScorer(BaseScorer):
                 scorer_name=self.name, score=1.0, passed=True, threshold=self.threshold, reasoning="No keywords specified."
             )
 
-        # Very basic keyword extraction: split by space, remove common stopwords and punctuation
-        raw_words = re.findall(r"\b\w{3,}\b", source_text.lower())
-        stopwords = {"the", "and", "that", "this", "with", "from", "for", "are", "but", "not"}
+        # Keyword extraction: extract all word/numeric tokens excluding common stopwords
+        raw_words = re.findall(r"\b\w+\b", source_text.lower())
+        stopwords = {"the", "and", "that", "this", "with", "from", "for", "are", "but", "not", "is", "of", "in", "to", "a", "an", "or", "on"}
         keywords = set(w for w in raw_words if w not in stopwords)
         
         if not keywords:

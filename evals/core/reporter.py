@@ -61,10 +61,70 @@ class EvalReporter:
             border_style="blue"
         ))
         
+    @staticmethod
+    def _extract_sub_scores(scores: list[Any]) -> list[Any]:
+        """Unwrap individual sub-scorer results from composite scores if present."""
+        extracted = []
+        for s in scores:
+            if getattr(s, "scorer_name", None) == "composite" and getattr(s, "details", None):
+                individual = s.details.get("individual_results", [])
+                if individual:
+                    from evals.core.interfaces import ScoreResult
+                    for ind in individual:
+                        try:
+                            extracted.append(ScoreResult.model_validate(ind))
+                        except Exception:
+                            extracted.append(s)
+                else:
+                    extracted.append(s)
+            else:
+                extracted.append(s)
+        return extracted
+
+    def print_summary(self) -> None:
+        """Print a human-readable summary to the terminal."""
+        if not RICH_AVAILABLE:
+            print("\n[Eval Run Summary]")
+            print(f"Run ID: {self.report.run_id}")
+            print(f"Passed: {self.report.summary['passed']}/{self.report.summary['total_cases']}")
+            print(f"Average Score: {self.report.summary['average_score']:.3f}")
+            print("\n(Install 'rich' for formatted terminal output)")
+            return
+
+        console = Console()
+        
+        # Main summary panel
+        summary = self.report.summary
+        total = summary["total_cases"]
+        passed = summary["passed"]
+        failed = summary["failed"]
+        errors = summary["error_count"]
+        
+        pass_pct = (passed / total * 100) if total > 0 else 0
+        fail_pct = (failed / total * 100) if total > 0 else 0
+        err_pct = (errors / total * 100) if total > 0 else 0
+        
+        summary_text = (
+            f"Total Cases:     {total}\n"
+            f"Passed:          {passed} ({pass_pct:.1f}%)\n"
+            f"Failed:          {failed} ({fail_pct:.1f}%)\n"
+            f"Errors:          {errors} ({err_pct:.1f}%)\n"
+            f"Average Score:   {summary['average_score']:.3f}\n"
+            f"Average Steps:   {summary['average_steps']:.1f}"
+        )
+        
+        console.print()
+        console.print(Panel(
+            summary_text,
+            title=f"Eval Run Summary: {self.report.run_id}",
+            border_style="blue"
+        ))
+        
         # Scorer breakdown table (computed on the fly from results)
         scorer_stats: dict[str, dict[str, Any]] = {}
         for r in self.report.results:
-            for s in r.scores:
+            sub_scores = self._extract_sub_scores(r.scores)
+            for s in sub_scores:
                 stats = scorer_stats.setdefault(s.scorer_name, {"total": 0, "passed": 0, "sum": 0.0, "min": 1.0, "max": 0.0})
                 stats["total"] += 1
                 if s.passed:
@@ -112,7 +172,8 @@ class EvalReporter:
                     console.print(f"  • [yellow]{r.case_id}[/yellow]: {input_trunc}")
                     console.print(f"    [red]ERROR:[/red] {r.error}")
                 else:
-                    failed_scorers = [s for s in r.scores if not s.passed]
+                    sub_scores = self._extract_sub_scores(r.scores)
+                    failed_scorers = [s for s in sub_scores if not s.passed]
                     scorer_info = ", ".join([f"{s.scorer_name}({s.score:.2f})" for s in failed_scorers])
                     console.print(f"  • [yellow]{r.case_id}[/yellow]: {input_trunc}")
                     console.print(f"    [red]Failed:[/red] {scorer_info}")
@@ -161,7 +222,8 @@ class EvalReporter:
                     lines.append(f"**Error:** {r.error}")
                 else:
                     lines.append("**Failed Scorers:**")
-                    for s in r.scores:
+                    sub_scores = self._extract_sub_scores(r.scores)
+                    for s in sub_scores:
                         if not s.passed:
                             lines.append(f"- **{s.scorer_name}** ({s.score:.2f}): {s.reasoning or 'No reasoning'}")
                 lines.append("")
@@ -189,9 +251,10 @@ class EvalReporter:
         lines.append(f"Average Score: {b_summary['average_score']:.3f} -> {c_summary['average_score']:.3f} ({score_diff:+.3f})")
         lines.append(f"Passed Cases:  {b_summary['passed']} -> {c_summary['passed']} ({pass_diff:+d})")
         
-        # Find regressions and improvements
-        b_passed = {r.case_id for r in baseline.results if r.overall_passed}
-        c_passed = {r.case_id for r in current.results if r.overall_passed}
+        # Find regressions and improvements only among cases evaluated in BOTH runs
+        common_ids = {r.case_id for r in baseline.results} & {r.case_id for r in current.results}
+        b_passed = {r.case_id for r in baseline.results if r.overall_passed and r.case_id in common_ids}
+        c_passed = {r.case_id for r in current.results if r.overall_passed and r.case_id in common_ids}
         
         regressions = b_passed - c_passed
         improvements = c_passed - b_passed

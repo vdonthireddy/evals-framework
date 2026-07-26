@@ -83,6 +83,8 @@ class SafetyFilter:
                 fragment = " ".join(words[i : i + 5]).lower()
                 if len(fragment) >= 10:
                     self._system_prompt_fragments.append(fragment)
+            if not self._system_prompt_fragments and len(system_prompt.strip()) >= 10:
+                self._system_prompt_fragments.append(system_prompt.strip().lower())
 
     def check_input(self, user_message: str) -> tuple[bool, Optional[str]]:
         """Check if the user input is safe.

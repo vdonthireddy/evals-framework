@@ -76,17 +76,18 @@ class AgentTrace(BaseModel):
 
 def _create_llm_client(provider: str, api_key: str) -> Any:
     """Create an async LLM client for the specified provider."""
+    key = api_key or "dummy-key-for-offline"
     if provider == "openai":
         from openai import AsyncOpenAI
-        return AsyncOpenAI(api_key=api_key)
+        return AsyncOpenAI(api_key=key)
 
     elif provider == "anthropic":
         from anthropic import AsyncAnthropic
-        return AsyncAnthropic(api_key=api_key)
+        return AsyncAnthropic(api_key=key)
 
     elif provider == "gemini":
         from google import genai
-        return genai.Client(api_key=api_key)
+        return genai.Client(api_key=key)
 
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
@@ -270,6 +271,14 @@ class Agent:
             elif plan.action == "use_tool":
                 tool_name = plan.tool_name or ""
                 tool_args = plan.tool_args or {}
+                if isinstance(tool_args, str):
+                    try:
+                        tool_args = json.loads(tool_args)
+                    except Exception:
+                        tool_args = {"input": tool_args}
+                if not isinstance(tool_args, dict):
+                    tool_args = {}
+
                 tool = self._tools.get(tool_name)
 
                 if tool is None:

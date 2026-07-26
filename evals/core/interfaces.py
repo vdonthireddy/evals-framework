@@ -94,8 +94,8 @@ class EvalCase(BaseModel):
 
     @property
     def is_multi_turn(self) -> bool:
-        """True if this case has multiple conversation turns."""
-        return bool(self.turns and len(self.turns) > 1)
+        """True if this case has conversation turns specified."""
+        return bool(self.turns and len(self.turns) >= 1)
 
 
 # ── 12d: ScoreResult ───────────────────────────────────────────────────

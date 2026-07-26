@@ -263,7 +263,7 @@ Let's look at two full test cases from start to finish.
 * **Required Tools:** `get_weather`, `calculator`.
 
 **What the AI Agent does:**
-1. **Turn 1:** The AI calls the weather tool: `get_weather(location="Seattle")` $\rightarrow$ Result: "Seattle is currently 68°F and cloudy."
+1. **Turn 1:** The AI calls the weather tool: `get_weather(city="Seattle")` $\rightarrow$ Result: "Seattle is currently 68°F and cloudy."
 2. The AI responds: *"Seattle is currently 68 degrees Fahrenheit."*
 3. **Turn 2:** The user asks to convert it. The AI calls the calculator tool: `calculator(expression="(68 - 32) * 5/9")` $\rightarrow$ Result: "20.0".
 4. The AI responds: *"68°F is equal to 20°C."*

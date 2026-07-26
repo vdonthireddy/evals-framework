@@ -242,7 +242,7 @@ class EvalRunner:
             
         return AgentOutput(
             input=case.input,  # Original first input
-            output="\\n".join(combined_output_text),
+            output="\n".join(combined_output_text),
             steps=all_steps,
             total_steps=len(all_steps),
             total_tokens=total_tokens if total_tokens > 0 else None,

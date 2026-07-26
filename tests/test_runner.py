@@ -119,7 +119,7 @@ async def test_runner_multi_turn():
     )
     
     dataset = EvalDataset([multi_turn_case])
-    config = EvalConfig(presets=["regression"])
+    config = EvalConfig(scorer_config="regression")
     runner = EvalRunner(StatefulMockAdapter(), dataset, config)
     
     report = await runner.run()

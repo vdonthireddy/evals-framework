@@ -148,14 +148,15 @@ class TaskPlanner:
             return response.choices[0].message.content or ""
 
         elif self._provider == "anthropic":
-            # Anthropic expects system prompt separately
+            # Anthropic expects system prompt separately and only accepts 'user'/'assistant' roles
             system_msg = ""
             chat_messages = []
             for msg in messages:
                 if msg["role"] == "system":
                     system_msg = msg["content"]
                 else:
-                    chat_messages.append(msg)
+                    role = "user" if msg["role"] == "tool" else msg["role"]
+                    chat_messages.append({"role": role, "content": msg["content"]})
             response = await self._llm_client.messages.create(
                 model=self._model,
                 system=system_msg,
@@ -188,29 +189,36 @@ class TaskPlanner:
         """Parse the raw LLM response into a PlanStep."""
         import re
         
-        # Try to extract a JSON block using regex
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL | re.IGNORECASE)
+        # Try to extract a JSON block using greedy regex
+        match = re.search(r"```(?:json)?\s*(\{.*\}\s*)```", raw, re.DOTALL | re.IGNORECASE)
         if match:
-            text = match.group(1)
+            text = match.group(1).strip()
         else:
             # Fallback if no markdown block is used
             text = raw.strip()
 
         data = json.loads(text)
 
-        action = data["action"]
+        action = data.get("action", "")
+        tool_name = data.get("tool_name")
+
+        # Robust handling: if LLM puts tool name directly in action field (e.g. action: "calculator")
+        if action in self._tools and not tool_name:
+            tool_name = action
+            action = "use_tool"
+
         if action not in ("use_tool", "respond", "clarify"):
             raise ValueError(f"Invalid action: {action}")
 
         if action == "use_tool":
-            if not data.get("tool_name"):
+            if not tool_name:
                 raise ValueError("'use_tool' action requires 'tool_name'")
-            if data["tool_name"] not in self._tools:
-                raise ValueError(f"Unknown tool: {data['tool_name']}")
+            if tool_name not in self._tools:
+                raise ValueError(f"Unknown tool: {tool_name}")
 
         return PlanStep(
             action=action,
-            tool_name=data.get("tool_name"),
+            tool_name=tool_name,
             tool_args=data.get("tool_args"),
             response=data.get("response"),
             reasoning=data.get("reasoning", ""),

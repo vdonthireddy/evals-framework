@@ -100,9 +100,9 @@ async def run_cmd(args: argparse.Namespace) -> int:
         else:
             env_var = "JUDGE_LLM_API_KEY"
             
-        config.llm_judge_config["api_key"] = os.getenv(env_var, "")
+        config.llm_judge_config["api_key"] = os.getenv(env_var) or os.getenv("AGENT_API_KEY", "")
         if not config.llm_judge_config["api_key"]:
-            logger.warning(f"No {env_var} found in environment. LLM judge may fail.")
+            logger.warning(f"No {env_var} or AGENT_API_KEY found in environment. LLM judge may fail.")
 
     # 4. Run evals
     runner = EvalRunner(adapter, dataset, config)

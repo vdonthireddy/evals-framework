@@ -139,7 +139,7 @@ Eval cases are defined in `.jsonl` files in the `evals/datasets/` directory. Sim
 {
   "id": "new-test-case-1",
   "input": "Calculate 25 * 4",
-  "expected_tool_calls": [{"tool_name": "calculator"}],
+  "expected_tool_calls": [{"tool_name": "calculator", "arguments": {"expression": "25 * 4"}}],
   "expected_outcome": "100",
   "tags": ["math", "simple"],
   "difficulty": "easy"

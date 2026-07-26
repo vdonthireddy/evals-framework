@@ -221,9 +221,9 @@ Output ONLY a valid JSON object matching this exact schema:
         """Extract and parse JSON from the LLM's response."""
         import re
         
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL | re.IGNORECASE)
+        match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL | re.IGNORECASE)
         if match:
-            text = match.group(1)
+            text = match.group(1).strip()
         else:
             text = text.strip()
             

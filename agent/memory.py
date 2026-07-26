@@ -89,7 +89,8 @@ class ConversationMemory:
         messages = self.get_messages()
         # Always include the system prompt if present
         if messages and messages[0].get("role") == "system":
-            return [messages[0]] + messages[-(n):]
+            non_system = messages[1:]
+            return [messages[0]] + non_system[-n:]
         return messages[-n:]
 
     def get_summary(self) -> str:
