@@ -101,7 +101,7 @@ async def test_tool_selection_no_bonus_on_empty_expected():
 
 @pytest.mark.asyncio
 async def test_multi_turn_output_newline_joining():
-    from evals.adapters.example_agent import AgentAdapter
+    from evals.core.interfaces import AgentAdapter
     
     class MockStatefulAdapter(AgentAdapter):
         def reset(self): pass

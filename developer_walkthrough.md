@@ -364,7 +364,7 @@ evals-framework/
 │   ├── __init__.py
 │   ├── adapters/                 # Framework adapters (Example & LangChain)
 │   │   ├── __init__.py
-│   │   ├── example_agent.py      # Adapter for Phase 1 agent
+│   │   ├── example_agent_adapter.py      # Adapter for Phase 1 agent
 │   │   └── langchain_adapter.py  # Generic LangChain adapter
 │   ├── core/                     # Core engine (interfaces, runner, reporter)
 │   ├── datasets/                 # Eval JSONL datasets
@@ -599,7 +599,7 @@ evals/
 
 ## Step 13a: Build the Agent Adapter for the Example Agent
 
-**File**: [evals/adapters/example_agent.py](evals/adapters/example_agent.py)
+**File**: [evals/adapters/example_agent_adapter.py](evals/adapters/example_agent_adapter.py)
 
 - Implements `AgentAdapter` for the Phase 1 agent, converting `AgentTrace` into `AgentOutput`.
 
@@ -926,7 +926,7 @@ Below is a complete reference of every class across Phase 1 and Phase 2, its fil
 | `ScoreResult` | [evals/core/interfaces.py](evals/core/interfaces.py) | Phase 2 (Interfaces) | Output produced by one scorer for one evaluation case. |
 | `EvalResult` | [evals/core/interfaces.py](evals/core/interfaces.py) | Phase 2 (Interfaces) | Full combined evaluation result (output + all scorer scores) for a case. |
 | `AgentAdapter` | [evals/core/interfaces.py](evals/core/interfaces.py) | Phase 2 (Interfaces) | Abstract interface contract that any agent framework must implement. |
-| `ExampleAgentAdapter` | [evals/adapters/example_agent.py](evals/adapters/example_agent.py) | Phase 2 (Adapters) | Concrete adapter connecting the Phase 1 multi-tool agent to evals. |
+| `ExampleAgentAdapter` | [evals/adapters/example_agent_adapter.py](evals/adapters/example_agent_adapter.py) | Phase 2 (Adapters) | Concrete adapter connecting the Phase 1 multi-tool agent to evals. |
 | `LangChainAdapter` | [evals/adapters/langchain_adapter.py](evals/adapters/langchain_adapter.py) | Phase 2 (Adapters) | Generic adapter wrapping LangChain `AgentExecutor` or `Runnable` objects. |
 | `EvalDataset` | [evals/core/dataset.py](evals/core/dataset.py) | Phase 2 (Core) | Loader and manager for JSONL datasets with filtering and sampling. |
 | `BaseScorer` | [evals/scorers/base.py](evals/scorers/base.py) | Phase 2 (Scorers) | Abstract base class for all evaluation metrics and scorers. |

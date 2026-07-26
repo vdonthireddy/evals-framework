@@ -6,7 +6,7 @@ from typing import Any, Iterator
 import pytest
 from dotenv import load_dotenv
 
-from evals.adapters.example_agent import ExampleAgentAdapter
+from evals.adapters.example_agent_adapter import ExampleAgentAdapter
 from evals.core.dataset import EvalDataset
 from evals.core.interfaces import AgentOutput, EvalCase
 from evals.scorers.composite import CompositeScorer

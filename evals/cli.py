@@ -9,7 +9,7 @@ import sys
 
 import yaml
 
-from evals.adapters.example_agent import ExampleAgentAdapter
+from evals.adapters.example_agent_adapter import ExampleAgentAdapter
 from evals.core.dataset import EvalDataset
 from evals.core.reporter import EvalReporter
 from evals.core.runner import EvalConfig, EvalRunner, EvalRunReport
