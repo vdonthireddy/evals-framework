@@ -21,45 +21,6 @@ class EvalReporter:
 
     def __init__(self, report: EvalRunReport):
         self.report = report
-
-    def print_summary(self) -> None:
-        """Print a human-readable summary to the terminal."""
-        if not RICH_AVAILABLE:
-            print("\n[Eval Run Summary]")
-            print(f"Run ID: {self.report.run_id}")
-            print(f"Passed: {self.report.summary['passed']}/{self.report.summary['total_cases']}")
-            print(f"Average Score: {self.report.summary['average_score']:.3f}")
-            print("\n(Install 'rich' for formatted terminal output)")
-            return
-
-        console = Console()
-        
-        # Main summary panel
-        summary = self.report.summary
-        total = summary["total_cases"]
-        passed = summary["passed"]
-        failed = summary["failed"]
-        errors = summary["error_count"]
-        
-        pass_pct = (passed / total * 100) if total > 0 else 0
-        fail_pct = (failed / total * 100) if total > 0 else 0
-        err_pct = (errors / total * 100) if total > 0 else 0
-        
-        summary_text = (
-            f"Total Cases:     {total}\n"
-            f"Passed:          {passed} ({pass_pct:.1f}%)\n"
-            f"Failed:          {failed} ({fail_pct:.1f}%)\n"
-            f"Errors:          {errors} ({err_pct:.1f}%)\n"
-            f"Average Score:   {summary['average_score']:.3f}\n"
-            f"Average Steps:   {summary['average_steps']:.1f}"
-        )
-        
-        console.print()
-        console.print(Panel(
-            summary_text,
-            title=f"Eval Run Summary: {self.report.run_id}",
-            border_style="blue"
-        ))
         
     @staticmethod
     def _extract_sub_scores(scores: list[Any]) -> list[Any]:
