@@ -6,6 +6,7 @@ Ties together the planner, tools, memory, and safety filter into a single
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from datetime import datetime, timezone

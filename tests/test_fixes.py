@@ -234,3 +234,22 @@ async def test_tool_argument_type_normalization():
     assert res.passed is True
     assert res.score == 1.0
 
+
+@pytest.mark.asyncio
+async def test_agent_string_tool_args_parsing():
+    from agent.app import Agent
+    from agent.planner import PlanStep
+    from unittest.mock import AsyncMock
+    
+    agent = Agent(api_key="dummy")
+    
+    # Mock planner returning string tool_args (e.g. '{"expression": "42 * 10"}')
+    agent._planner.plan_next_step = AsyncMock(side_effect=[
+        PlanStep(action="use_tool", tool_name="calculator", tool_args='{"expression": "42 * 10"}'),
+        PlanStep(action="respond", response="Result is 420.")
+    ])
+    
+    trace = await agent.run("Calculate 42 * 10")
+    assert trace.output == "Result is 420."
+    assert trace.steps[0].tool_args == {"expression": "42 * 10"}
+

@@ -52,7 +52,7 @@ class PlanStep(BaseModel):
 
     action: str  # "use_tool", "respond", "clarify"
     tool_name: Optional[str] = None
-    tool_args: Optional[dict[str, Any]] = None
+    tool_args: Optional[Any] = None
     response: Optional[str] = None
     reasoning: str = ""
 
