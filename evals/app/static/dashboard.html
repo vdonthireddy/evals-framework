@@ -1146,7 +1146,8 @@
                         ${res.expected_output ? `<div><strong>Expected Response:</strong> ${res.expected_output}</div>` : ''}
                         ${res.expected_outcome ? `<div style="${res.expected_output ? 'margin-top:0.4rem;' : ''}"><strong>Expected Outcome:</strong> ${res.expected_outcome}</div>` : ''}
                         ${res.expected_tool_calls && res.expected_tool_calls.length > 0 ? `<div style="margin-top:0.4rem;"><strong>Expected Tool Calls:</strong> ${JSON.stringify(res.expected_tool_calls, null, 2)}</div>` : ''}
-                        ${(!res.expected_output && !res.expected_outcome && (!res.expected_tool_calls || res.expected_tool_calls.length === 0)) ? '<span style="color: var(--text-muted);">No specific ground-truth output constraint specified for this case (evaluated against standard safety & trajectory heuristics).</span>' : ''}
+                        ${res.expected_safety_trigger !== undefined && res.expected_safety_trigger !== null ? `<div style="${res.expected_output || res.expected_outcome || (res.expected_tool_calls && res.expected_tool_calls.length > 0) ? 'margin-top:0.4rem;' : ''}"><strong>Expected Safety Refusal:</strong> <span style="color:#ef4444; font-weight:600;">🛡️ ${res.expected_safety_trigger ? 'True (Harmful/Malicious Prompt - Must trigger safety refusal)' : 'False (Safe Prompt)'}</span></div>` : ''}
+                        ${(!res.expected_output && !res.expected_outcome && (!res.expected_tool_calls || res.expected_tool_calls.length === 0) && (res.expected_safety_trigger === undefined || res.expected_safety_trigger === null)) ? '<span style="color: var(--text-muted);">No specific ground-truth output constraint specified for this case (evaluated against standard safety & trajectory heuristics).</span>' : ''}
                     </div>
                 </div>
 
@@ -1234,6 +1235,14 @@
             document.getElementById('new-model-modal').style.display = 'none';
         }
 
+        // Close active modals on Escape key press
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' || event.key === 'Esc') {
+                closeModal();
+                closeModelModal();
+            }
+        });
+
         function autoFillServerUrl() {
             const provider = document.getElementById('modal-model-provider').value;
             const serverInput = document.getElementById('modal-model-server');
@@ -1256,17 +1265,23 @@
             const provider = selectedOpt ? selectedOpt.getAttribute('data-provider') || 'openai' : 'openai';
             const dataset_path = document.getElementById('admin-eval-dataset').value;
 
+            const concurrency = (provider === 'ollama') ? 1 : 2;
             try {
                 const res = await fetch('/api/admin/evals/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ adapter_id, provider, model, dataset_path, concurrency: 2 })
+                    body: JSON.stringify({ adapter_id, provider, model, dataset_path, concurrency })
                 });
                 const data = await res.json();
                 if (data.job_id) {
                     activeJobId = data.job_id;
                     document.getElementById('eval-progress-card').style.display = 'block';
                     document.getElementById('progress-job-id').innerText = `Job: ${activeJobId}`;
+                    document.getElementById('progress-status-badge').innerText = 'Running';
+                    document.getElementById('progress-status-badge').className = 'badge badge-purple';
+                    document.getElementById('progress-bar-fill').style.width = '0%';
+                    document.getElementById('progress-percent').innerText = '0%';
+                    document.getElementById('progress-cases-count').innerText = '0 / 0';
                     document.getElementById('progress-view-report').style.display = 'none';
                     if (progressInterval) clearInterval(progressInterval);
                     progressInterval = setInterval(pollEvalProgress, 1000);
@@ -1333,6 +1348,10 @@
                     clearInterval(progressInterval);
                     document.getElementById('progress-status-badge').innerText = 'Failed';
                     document.getElementById('progress-status-badge').className = 'badge badge-error';
+                } else {
+                    document.getElementById('progress-status-badge').innerText = 'Running';
+                    document.getElementById('progress-status-badge').className = 'badge badge-purple';
+                    document.getElementById('progress-view-report').style.display = 'none';
                 }
             } catch (err) {
                 console.error("Progress poll error:", err);

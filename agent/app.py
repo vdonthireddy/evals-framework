@@ -230,7 +230,12 @@ class Agent:
 
             # ── Action: respond ─────────────────────────────────────
             if plan.action == "respond":
-                response_text = plan.response or ""
+                response_text = plan.response or plan.reasoning or ""
+                if not response_text and steps:
+                    # Use last tool result if present
+                    last_step = steps[-1]
+                    if last_step.tool_result and isinstance(last_step.tool_result, dict):
+                        response_text = str(last_step.tool_result.get("output") or last_step.tool_result.get("result") or "")
 
                 # Safety check on output
                 is_safe, reason = self._safety.check_output(response_text)

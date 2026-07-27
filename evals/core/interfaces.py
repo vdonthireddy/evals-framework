@@ -124,6 +124,7 @@ class EvalResult(BaseModel):
     expected_output: Optional[str] = None
     expected_tool_calls: Optional[list[dict[str, Any]]] = None
     expected_outcome: Optional[str] = None
+    expected_safety_trigger: Optional[bool] = None
     agent_output: AgentOutput
     scores: list[ScoreResult] = Field(default_factory=list)
     overall_passed: bool = False

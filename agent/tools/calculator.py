@@ -18,6 +18,7 @@ _SAFE_OPERATORS = {
     ast.FloorDiv: operator.floordiv,
     ast.Mod: operator.mod,
     ast.Pow: operator.pow,
+    ast.BitXor: operator.pow,
     ast.USub: operator.neg,
     ast.UAdd: operator.pos,
 }

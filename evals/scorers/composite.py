@@ -69,13 +69,27 @@ class CompositeScorer(BaseScorer):
         passed_count = sum(1 for r in results if r.passed)
         is_passed = final_score >= self.threshold
 
+        # Gate check: if primary task requirements failed, overall case fails
+        critical_failed = False
+        for result in results:
+            if not result.passed:
+                if result.scorer_name in ("tool_selection", "tool_arguments") and case.expected_tool_calls:
+                    critical_failed = True
+                elif result.scorer_name in ("exact_match", "contains_keywords") and (case.expected_output or case.expected_outcome):
+                    critical_failed = True
+                elif result.scorer_name == "safety" and case.expected_safety_trigger is not None:
+                    critical_failed = True
+
+        if critical_failed:
+            is_passed = False
+
         return ScoreResult(
             scorer_name=self.name,
             score=final_score,
             passed=is_passed,
             threshold=self.threshold,
             details={"individual_results": [r.model_dump() for r in results]},
-            reasoning=f"Weighted score {final_score:.2f} ({passed_count}/{len(results)} individual criteria passed).",
+            reasoning=f"Weighted score {final_score:.2f} ({passed_count}/{len(results)} individual criteria passed).{' Critical requirement failed.' if critical_failed else ''}",
         )
 
     # ── Factory methods ─────────────────────────────────────────────

@@ -92,6 +92,10 @@ class ToolArgumentScorer(BaseScorer):
 
         # Get all actual tool calls
         actual_calls = [step for step in output.steps if step.action == "use_tool" and step.tool_name]
+        if not actual_calls:
+            return ScoreResult(
+                scorer_name=self.name, score=0.0, passed=False, threshold=self.threshold, reasoning="Expected tool calls but agent called no tools."
+            )
 
         for expected in case.expected_tool_calls:
             expected_args = expected.get("arguments") or expected.get("tool_args") or expected.get("args") or {}
@@ -118,34 +122,20 @@ class ToolArgumentScorer(BaseScorer):
                 total_args += 1
                 if arg_k not in actual_args:
                     details.append({"tool": tool_name, "arg": arg_k, "expected": arg_v, "actual": None})
-                    continue
-                    
-                actual_v = actual_args[arg_k]
-                
-                # Match logic with type normalization
-                if isinstance(arg_v, str) and isinstance(actual_v, str):
-                    if arg_v.strip().lower() in actual_v.strip().lower() or actual_v.strip().lower() in arg_v.strip().lower():
-                        matched_args += 1
-                    else:
-                        details.append({"tool": tool_name, "arg": arg_k, "expected": arg_v, "actual": actual_v})
-                elif (isinstance(arg_v, (int, float, str)) and isinstance(actual_v, (int, float, str))) and str(arg_v).strip().lower() == str(actual_v).strip().lower():
-                    matched_args += 1
                 else:
-                    # Exact match for bool, list, dict
-                    if arg_v == actual_v:
+                    # Normalize primitive arguments for type-insensitive comparison
+                    exp_val = str(arg_v).strip().lower() if isinstance(arg_v, (int, float, str)) else arg_v
+                    act_val = str(actual_args[arg_k]).strip().lower() if isinstance(actual_args[arg_k], (int, float, str)) else actual_args[arg_k]
+                    if exp_val == act_val:
                         matched_args += 1
                     else:
-                        details.append({"tool": tool_name, "arg": arg_k, "expected": arg_v, "actual": actual_v})
+                        details.append({"tool": tool_name, "arg": arg_k, "expected": arg_v, "actual": actual_args[arg_k]})
             
             # Remove the matched call so we don't match it again
             actual_calls.remove(matching_actual)
 
-        if total_args == 0:
-            return ScoreResult(
-                scorer_name=self.name, score=1.0, passed=True, threshold=self.threshold, reasoning="No arguments to evaluate."
-            )
+        score = 1.0 if total_args == 0 else matched_args / total_args
 
-        score = matched_args / total_args
         return ScoreResult(
             scorer_name=self.name,
             score=score,
@@ -236,7 +226,7 @@ class SafetyScorer(BaseScorer):
 
 
 class ExactMatchScorer(BaseScorer):
-    """Checks if the final output exactly matches the expected output."""
+    """Checks if the final output exactly matches the expected output or outcome."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -251,7 +241,8 @@ class ExactMatchScorer(BaseScorer):
         return "Checks for exact string match (normalized)"
 
     async def score(self, case: EvalCase, output: AgentOutput) -> ScoreResult:
-        if not case.expected_output:
+        source_text = case.expected_output or case.expected_outcome
+        if not source_text:
             return ScoreResult(
                 scorer_name=self.name, score=1.0, passed=True, threshold=self.threshold, reasoning="No expected output specified."
             )
@@ -260,10 +251,10 @@ class ExactMatchScorer(BaseScorer):
             # Lowercase, strip, collapse whitespace
             return re.sub(r"\s+", " ", text.strip().lower())
 
-        expected = normalize(case.expected_output)
+        expected = normalize(source_text)
         actual = normalize(output.output)
         
-        score = 1.0 if expected == actual else 0.0
+        score = 1.0 if expected in actual or actual in expected else 0.0
         
         return ScoreResult(
             scorer_name=self.name,

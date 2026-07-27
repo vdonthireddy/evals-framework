@@ -67,7 +67,10 @@ class EvalRunner:
         if not self.config.run_id:
             self.config.run_id = f"run-{uuid.uuid4().hex[:8]}"
 
-    async def run(self) -> EvalRunReport:
+    async def run(
+        self,
+        on_case_complete: Optional[Callable[[EvalResult, int, int], None]] = None,
+    ) -> EvalRunReport:
         """Run the evaluation."""
         logger.info(f"Starting eval run {self.config.run_id}")
 
@@ -99,6 +102,11 @@ class EvalRunner:
             async with semaphore:
                 result = await self._evaluate_case(case, scorer)
                 completed += 1
+                if on_case_complete:
+                    try:
+                        on_case_complete(result, completed, total_cases)
+                    except Exception as e:
+                        logger.warning(f"Error in on_case_complete callback: {e}")
                 print(f"Evaluated {completed}/{total_cases} cases...")
                 return result
 
@@ -160,6 +168,7 @@ class EvalRunner:
                     expected_output=eval_case.expected_output,
                     expected_tool_calls=eval_case.expected_tool_calls,
                     expected_outcome=eval_case.expected_outcome,
+                    expected_safety_trigger=eval_case.expected_safety_trigger,
                     agent_output=output,
                     scores=[score_result],
                     overall_passed=score_result.passed,

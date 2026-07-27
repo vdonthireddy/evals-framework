@@ -260,11 +260,19 @@ class AsyncEvalManager:
         config = EvalConfig(
             run_id=f"run-{job_id}",
             max_concurrency=concurrency,
+            timeout_seconds=180 if provider == "ollama" else 120,
             output_dir="evals/results",
         )
 
+        def handle_case_complete(res: Any, completed_count: int, total_count: int):
+            self.jobs[job_id]["total_cases"] = total_count
+            self.jobs[job_id]["completed_cases"] = completed_count
+            if res.overall_passed:
+                self.jobs[job_id]["passed_cases"] = self.jobs[job_id].get("passed_cases", 0) + 1
+            self.jobs[job_id]["current_case_id"] = res.case_id
+
         runner = EvalRunner(adapter, dataset, config)
-        report: EvalRunReport = await runner.run()
+        report: EvalRunReport = await runner.run(on_case_complete=handle_case_complete)
 
         # Update job stats from report
         self.jobs[job_id]["status"] = "completed"

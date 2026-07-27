@@ -36,24 +36,34 @@ class ExampleAgentAdapter(AgentAdapter):
         max_steps: int = 10,
         temperature: float = 0.0,
     ) -> None:
+        import asyncio
         self._provider = provider
         self._model = model
-        self._agent = Agent(
-            provider=provider,
-            model=model,
-            api_key=api_key,
-            max_steps=max_steps,
-            temperature=temperature,
+        self._api_key = api_key
+        self._max_steps = max_steps
+        self._temperature = temperature
+        self._lock = asyncio.Lock()
+        self._agent = self._create_agent()
+
+    def _create_agent(self) -> Agent:
+        return Agent(
+            provider=self._provider,
+            model=self._model,
+            api_key=self._api_key,
+            max_steps=self._max_steps,
+            temperature=self._temperature,
         )
 
     async def execute(self, input: str) -> AgentOutput:
         """Run the example agent and convert its AgentTrace to AgentOutput."""
-        trace: AgentTrace = await self._agent.run(input)
+        # Instantiate an isolated agent per execution call to guarantee parallel state safety
+        agent = self._create_agent()
+        trace: AgentTrace = await agent.run(input)
         return self._convert_trace(trace)
 
     def reset(self) -> None:
         """Clear the agent's conversation memory between eval cases."""
-        self._agent.memory.clear()
+        self._agent = self._create_agent()
 
     def get_info(self) -> dict[str, Any]:
         """Return metadata about the example agent."""

@@ -107,9 +107,11 @@ class TaskPlanner:
             if msg.get("role") != "system":
                 messages.append(msg)
 
+        last_raw_response = ""
         for attempt in range(2):
             try:
                 raw_response = await self._call_llm(messages)
+                last_raw_response = raw_response
                 plan = self._parse_response(raw_response)
                 return plan
             except (json.JSONDecodeError, KeyError, ValueError) as exc:
@@ -127,7 +129,16 @@ class TaskPlanner:
                         "the required format.",
                     })
 
-        # Fallback: respond with an apology
+        # Fallback: if local LLM returned non-JSON text, use raw text directly as response
+        if last_raw_response and last_raw_response.strip():
+            logger.info("Planner fallback: using raw text output from LLM.")
+            return PlanStep(
+                action="respond",
+                response=last_raw_response.strip(),
+                reasoning="Extracted plain text response from LLM output.",
+            )
+
+        # Ultimate Fallback: respond with an apology
         logger.error("Planner failed to produce valid output after retries.")
         return PlanStep(
             action="respond",
@@ -189,18 +200,31 @@ class TaskPlanner:
         """Parse the raw LLM response into a PlanStep."""
         import re
         
-        # Try to extract a JSON block using greedy regex
-        match = re.search(r"```(?:json)?\s*(\{.*\}\s*)```", raw, re.DOTALL | re.IGNORECASE)
+        # Try to extract JSON from code block or find first outer JSON object
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL | re.IGNORECASE)
         if match:
             text = match.group(1).strip()
         else:
-            # Fallback if no markdown block is used
-            text = raw.strip()
+            # Extract first outer {...} JSON block
+            first_brace = raw.find("{")
+            last_brace = raw.rfind("}")
+            if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                text = raw[first_brace:last_brace + 1].strip()
+            else:
+                text = raw.strip()
 
         data = json.loads(text)
 
-        action = data.get("action", "")
+        action = str(data.get("action", "")).strip().lower()
         tool_name = data.get("tool_name")
+
+        # Normalize action synonyms commonly output by local LLMs
+        if action in ("answer", "final_answer", "reply", "complete", "done", "response", "respond"):
+            action = "respond"
+        elif action in ("tool", "call_tool", "function_call", "tool_call", "use_tool"):
+            action = "use_tool"
+        elif action in ("clarify", "ask"):
+            action = "clarify"
 
         # Robust handling: if LLM puts tool name directly in action field (e.g. action: "calculator")
         if action in self._tools and not tool_name:
@@ -216,10 +240,14 @@ class TaskPlanner:
             if tool_name not in self._tools:
                 raise ValueError(f"Unknown tool: {tool_name}")
 
+        response_val = data.get("response")
+        if not response_val and action == "respond":
+            response_val = data.get("reasoning") or data.get("answer")
+
         return PlanStep(
             action=action,
             tool_name=tool_name,
             tool_args=data.get("tool_args"),
-            response=data.get("response"),
+            response=response_val,
             reasoning=data.get("reasoning", ""),
         )
