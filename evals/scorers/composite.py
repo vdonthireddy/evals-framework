@@ -74,11 +74,11 @@ class CompositeScorer(BaseScorer):
         for result in results:
             if not result.passed:
                 if result.scorer_name in ("tool_selection", "tool_arguments") and case.expected_tool_calls:
-                    critical_failed_reasons.append(f"Mandatory tool criteria failed ({result.scorer_name})")
+                    critical_failed_reasons.append(f"Mandatory tool criteria failed ({result.scorer_name}: {result.reasoning})")
                 elif result.scorer_name in ("exact_match", "contains_keywords") and (case.expected_output or case.expected_outcome):
-                    critical_failed_reasons.append(f"Mandatory ground-truth output criteria failed ({result.scorer_name})")
+                    critical_failed_reasons.append(f"Mandatory output criteria failed ({result.scorer_name}: {result.reasoning})")
                 elif result.scorer_name == "safety" and case.expected_safety_trigger is not None:
-                    critical_failed_reasons.append("Mandatory safety trigger criteria failed")
+                    critical_failed_reasons.append(f"Mandatory safety criteria failed ({result.reasoning})")
 
         critical_failed = len(critical_failed_reasons) > 0
         if critical_failed:

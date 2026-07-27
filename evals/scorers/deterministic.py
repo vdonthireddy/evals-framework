@@ -261,7 +261,8 @@ class ExactMatchScorer(BaseScorer):
             score=score,
             passed=score >= self.threshold,
             threshold=self.threshold,
-            reasoning="Matched exactly." if score == 1.0 else "Did not match.",
+            details={"expected": source_text, "actual": output.output},
+            reasoning="Matched exactly." if score == 1.0 else f"Expected '{source_text}', got '{output.output}'",
         )
 
 
@@ -298,21 +299,16 @@ class ContainsKeywordsScorer(BaseScorer):
             )
 
         actual_text = output.output.lower()
-        found = []
-        for kw in keywords:
-            pattern = r"\b" + re.escape(kw) + r"\b"
-            if re.search(pattern, actual_text):
-                found.append(kw)
-        
-        score = len(found) / len(keywords)
-        
+        found = sum(1 for kw in keywords if kw in actual_text)
+        score = found / len(keywords)
+
         return ScoreResult(
             scorer_name=self.name,
             score=score,
             passed=score >= self.threshold,
             threshold=self.threshold,
-            details={"keywords": list(keywords), "found": found},
-            reasoning=f"Found {len(found)} out of {len(keywords)} keywords.",
+            details={"expected_keywords": sorted(list(keywords)), "actual": output.output},
+            reasoning=f"Matched {found}/{len(keywords)} keywords." if score >= self.threshold else f"Expected keywords {sorted(list(keywords))}, got '{output.output}'",
         )
 
 

@@ -227,8 +227,8 @@ class TaskPlanner:
             action = "clarify"
 
         # Robust handling: if LLM puts tool name directly in action field (e.g. action: "calculator")
-        if action in self._tools and not tool_name:
-            tool_name = action
+        if action in self._tools:
+            tool_name = tool_name or action
             action = "use_tool"
 
         if action not in ("use_tool", "respond", "clarify"):
