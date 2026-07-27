@@ -317,6 +317,9 @@ class Agent:
                     reasoning=plan.reasoning,
                 ))
 
+                self.memory.add_assistant_message(
+                    f"Selected action: use_tool '{tool_name}' with args {json.dumps(tool_args)}"
+                )
                 self.memory.add_tool_result(tool_name, result_dict)
 
         else:

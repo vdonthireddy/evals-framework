@@ -1205,18 +1205,35 @@
                                         });
                                     }
                                 });
-                                return allScorerRows.map(s => `
+                                return allScorerRows.map(s => {
+                                    let badgeHtml = `<span class="badge ${s.passed ? 'badge-success' : 'badge-error'}">${s.passed ? 'PASS' : 'FAIL'}</span>`;
+                                    if (!s.is_sub && !s.passed && typeof s.score === 'number' && typeof s.threshold === 'number' && s.score >= s.threshold) {
+                                        badgeHtml += ` <span class="badge badge-error" style="margin-left:0.3rem; font-size:0.7rem;">CRITICAL GATE FAIL</span>`;
+                                    }
+                                    return `
                                     <tr style="${s.is_sub ? 'background: rgba(0,0,0,0.15);' : 'font-weight: 600;'}">
                                         <td style="${s.is_sub ? 'padding-left: 1.5rem;' : ''}"><strong>${s.scorer_name}</strong></td>
                                         <td>${typeof s.score === 'number' ? s.score.toFixed(2) : '-'}</td>
                                         <td>${typeof s.threshold === 'number' ? s.threshold.toFixed(2) : '-'}</td>
-                                        <td><span class="badge ${s.passed ? 'badge-success' : 'badge-error'}">${s.passed ? 'PASS' : 'FAIL'}</span></td>
+                                        <td>${badgeHtml}</td>
                                         <td style="font-size: 0.85rem; color: var(--text-muted);">${s.reasoning || '-'}</td>
                                     </tr>
-                                `).join('');
+                                    `;
+                                }).join('');
                             })()}
                         </tbody>
                     </table>
+                    ${(() => {
+                        const compositeScore = (res.scores || []).find(s => s.scorer_name === 'composite');
+                        if (compositeScore && !compositeScore.passed && typeof compositeScore.score === 'number' && typeof compositeScore.threshold === 'number' && compositeScore.score >= compositeScore.threshold) {
+                            return `
+                                <div style="margin-top: 0.8rem; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; padding: 0.75rem; font-size: 0.85rem; color: #fca5a5;">
+                                    <strong>⚠️ Critical Gate Override:</strong> Although the weighted average score (${compositeScore.score.toFixed(2)}) is above the pass threshold (${compositeScore.threshold.toFixed(2)}), this case failed because a mandatory task requirement (such as ground-truth output matching or tool selection) failed.
+                                </div>
+                            `;
+                        }
+                        return '';
+                    })()}
                 </div>
             `;
 

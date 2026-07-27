@@ -40,10 +40,10 @@ Your job is to decide the NEXT single action to take.
 
 ## Rules
 - Use tools when you need external information. Do NOT make up information.
-- If a tool returned results, use them to formulate your response.
+- Do NOT call the same tool repeatedly if results have already been returned in conversation history.
+- Once a tool returns valid information answering the request, choose "respond" immediately and provide the full, detailed answer to the user in the "response" field (do NOT leave "response" null when action is "respond").
 - If a tool returned an error, explain the issue or try an alternative approach.
 - Be concise and helpful in your responses.
-- When you have all the information needed, choose "respond" and provide the final answer.
 """
 
 
@@ -201,7 +201,7 @@ class TaskPlanner:
         import re
         
         # Try to extract JSON from code block or find first outer JSON object
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL | re.IGNORECASE)
+        match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", raw, re.DOTALL | re.IGNORECASE)
         if match:
             text = match.group(1).strip()
         else:

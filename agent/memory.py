@@ -57,10 +57,28 @@ class ConversationMemory:
 
     def add_tool_result(self, tool_name: str, result: dict[str, Any]) -> None:
         """Append a tool result message."""
+        import json
+        output_val = result.get("output")
+        error_val = result.get("error")
+        
+        if result.get("success") is False or error_val:
+            content_text = f"Tool '{tool_name}' failed with error: {error_val}"
+        elif isinstance(output_val, dict):
+            if "result" in output_val:
+                content_text = f"Tool '{tool_name}' executed successfully. Result: {output_val['result']}"
+            elif "results" in output_val:
+                content_text = f"Tool '{tool_name}' executed successfully. Results: {json.dumps(output_val['results'])}"
+            else:
+                content_text = f"Tool '{tool_name}' executed successfully. Output: {json.dumps(output_val)}"
+        elif output_val is not None:
+            content_text = f"Tool '{tool_name}' executed successfully. Result: {output_val}"
+        else:
+            content_text = f"Tool '{tool_name}' returned: {result}"
+
         self._messages.append(
             Message(
                 role="tool",
-                content=f"Tool '{tool_name}' returned: {result}",
+                content=content_text,
                 tool_results=[{"tool_name": tool_name, **result}],
             )
         )
@@ -77,7 +95,8 @@ class ConversationMemory:
             messages.append({"role": "system", "content": self._system_prompt})
 
         for msg in self._messages:
-            entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
+            role = "user" if msg.role == "tool" else msg.role
+            entry: dict[str, Any] = {"role": role, "content": msg.content}
             if msg.tool_calls:
                 entry["tool_calls"] = msg.tool_calls
             messages.append(entry)
