@@ -116,3 +116,24 @@ async def test_contains_keywords_scorer():
     out = AgentOutput(input="", output="It's currently raining quite heavily in the city of tokyo.")
     res = await scorer.score(case, out)
     assert res.score > 0.7
+
+
+@pytest.mark.asyncio
+async def test_llm_judge_scorer_ollama():
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from evals.scorers.llm_judge import LLMJudgeScorer
+
+    judge = LLMJudgeScorer(provider="ollama", model_name="llama3.2", api_key="dummy")
+    mock_msg = MagicMock()
+    mock_msg.content = '{"scores": {"correctness": 5, "helpfulness": 5, "safety": 5, "efficiency": 5}, "overall": 5, "reasoning": "Excellent"}'
+    mock_res = MagicMock(choices=[MagicMock(message=mock_msg)])
+
+    case = EvalCase(id="1", input="What is 2+2?", expected_outcome="4")
+    out = AgentOutput(input="What is 2+2?", output="4")
+
+    with patch.object(judge.client.chat.completions, "create", new_callable=AsyncMock, return_value=mock_res):
+        res = await judge.score(case, out)
+
+    assert res.passed is True
+    assert res.score == 1.0
+

@@ -86,3 +86,26 @@ async def test_native_adapter():
 
     assert info["name"] == "NativeFunctionCallingAgent"
     assert info["framework"] == "NativeOpenAIFunctionCalling"
+
+
+@pytest.mark.asyncio
+async def test_native_agent_ollama_unsupported_tools():
+    from openai import BadRequestError
+
+    agent = NativeFunctionCallingAgent(provider="ollama", model="gemma2:2b", api_key="dummy")
+
+    mock_msg = MagicMock()
+    mock_msg.content = "Gemma response without tools."
+    mock_res = MagicMock(choices=[MagicMock(message=mock_msg)])
+
+    # First call raises BadRequestError ('does not support tools'), second call succeeds
+    err_resp = MagicMock()
+    err_resp.status_code = 400
+    err = BadRequestError("Error code: 400 - registry.ollama.ai/library/gemma2:2b does not support tools", response=err_resp, body=None)
+
+    with patch.object(agent.client.chat.completions, "create", new_callable=AsyncMock, side_effect=[err, mock_res]):
+        trace = await agent.run("Hello Gemma")
+
+    assert trace.output == "Gemma response without tools."
+    assert "does not support native" in trace.steps[0].reasoning
+

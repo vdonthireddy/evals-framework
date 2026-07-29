@@ -140,8 +140,12 @@ class NativeFunctionCallingAgent:
 
                     response = await self.client.chat.completions.create(**kwargs)
                     msg = response.choices[0].message
-                    if hasattr(response, "usage") and response.usage:
-                        total_tokens += getattr(response.usage, "total_tokens", 0) or 0
+                    usage = getattr(response, "usage", None)
+                    if usage:
+                        tot = getattr(usage, "total_tokens", 0) or (getattr(usage, "prompt_tokens", 0) + getattr(usage, "completion_tokens", 0))
+                        total_tokens += tot or max(1, (sum(len(str(m.get("content", ""))) for m in messages if isinstance(m, dict)) + len(msg.content or "")) // 4)
+                    else:
+                        total_tokens += max(1, (sum(len(str(m.get("content", ""))) for m in messages if isinstance(m, dict)) + len(msg.content or "")) // 4)
 
                     tool_calls = getattr(msg, "tool_calls", None)
 
@@ -201,6 +205,26 @@ class NativeFunctionCallingAgent:
                     ))
                     break
                 except Exception as exc:
+                    exc_str = str(exc).lower()
+                    if "does not support tools" in exc_str or "tools are not supported" in exc_str:
+                        logger.warning(f"Model '{self.model}' does not support native tools. Retrying without tools parameter...")
+                        try:
+                            kwargs.pop("tools", None)
+                            kwargs.pop("tool_choice", None)
+                            response = await self.client.chat.completions.create(**kwargs)
+                            msg = response.choices[0].message
+                            final_response = msg.content or ""
+                            steps.append(TraceStep(
+                                step_number=step_number,
+                                action="respond",
+                                response=final_response,
+                                reasoning=f"Note: Model '{self.model}' does not support native OpenAI tool-calling on Ollama. Generated plain text response instead.",
+                                timestamp=datetime.now(timezone.utc),
+                            ))
+                            break
+                        except Exception as retry_exc:
+                            exc = retry_exc
+
                     logger.error(f"Error in OpenAI/Ollama step {step_number}: {exc}", exc_info=True)
                     final_response = f"I encountered an error: {exc}"
                     steps.append(TraceStep(step_number=step_number, action="error", reasoning=str(exc), response=final_response))

@@ -26,10 +26,12 @@ class EvalDataset:
                 containing JSONL files, or a pre-populated list of EvalCase objects.
         """
         self._cases: list[EvalCase] = []
+        self.path: Optional[str] = None
 
         if isinstance(path_or_cases, list):
             self._cases = list(path_or_cases)
         elif isinstance(path_or_cases, (str, Path)):
+            self.path = str(path_or_cases)
             path = Path(path_or_cases)
             if not path.exists():
                 raise FileNotFoundError(f"Dataset path not found: {path}")
@@ -110,6 +112,7 @@ class EvalDataset:
                 tags[tag] = tags.get(tag, 0) + 1
 
         return {
+            "path": self.path,
             "total_cases": len(self._cases),
             "by_category": categories,
             "by_difficulty": difficulties,

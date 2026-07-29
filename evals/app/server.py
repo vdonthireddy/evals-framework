@@ -188,6 +188,37 @@ class EvalReportHTTPRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"success": True, "job_id": job_id})
             return
 
+        elif path == "/api/admin/evals/rerun":
+            run_id = payload.get("run_id")
+            if not run_id:
+                self._send_json({"error": "Missing run_id"}, status=400)
+                return
+
+            if not self.eval_mgr:
+                self._send_json({"error": "Eval manager not initialized"}, status=500)
+                return
+
+            try:
+                result = self.eval_mgr.rerun_job(run_id)
+                self._send_json({"success": True, **result})
+            except Exception as e:
+                self._send_json({"error": f"Failed to launch re-run: {e}"}, status=500)
+            return
+
+        elif path == "/api/runs/delete-bulk":
+            run_ids = payload.get("run_ids", [])
+            if not isinstance(run_ids, list) or not run_ids:
+                self._send_json({"error": "run_ids must be a non-empty array"}, status=400)
+                return
+
+            deleted_count = 0
+            for r_id in run_ids:
+                if self.store.delete_run(r_id):
+                    deleted_count += 1
+
+            self._send_json({"success": True, "deleted_count": deleted_count})
+            return
+
         else:
             self._send_json({"error": "Not Found"}, status=404)
 
@@ -205,6 +236,17 @@ class EvalReportHTTPRequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": True, "run_id": run_id})
             else:
                 self._send_json({"error": f"Run '{run_id}' not found"}, status=404)
+            return
+        elif path.startswith("/api/admin/models/"):
+            model_id = path.replace("/api/admin/models/", "").strip()
+            if not model_id:
+                self._send_json({"error": "Model ID required"}, status=400)
+                return
+            deleted = self.model_registry.delete_model(model_id)
+            if deleted:
+                self._send_json({"success": True, "model_id": model_id})
+            else:
+                self._send_json({"error": f"Model '{model_id}' not found"}, status=404)
             return
         else:
             self._send_json({"error": "Not Found"}, status=404)

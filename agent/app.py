@@ -204,6 +204,7 @@ class Agent:
 
             try:
                 plan = await self._planner.plan_next_step(self.memory)
+                total_tokens += getattr(self._planner, "last_tokens_used", 0)
             except Exception as exc:
                 logger.error("Planner error: %s", exc)
                 error_msg = f"Planning error: {exc}"

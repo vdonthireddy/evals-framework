@@ -180,6 +180,18 @@ class ModelRegistry:
 
         return model_info
 
+    def delete_model(self, model_id: str) -> bool:
+        """Delete a model configuration by model_id."""
+        models = self.list_models()
+        filtered = [m for m in models if m["id"] != model_id]
+        if len(filtered) == len(models):
+            return False
+
+        with open(self.registry_file, "w", encoding="utf-8") as f:
+            json.dump(filtered, f, indent=2)
+
+        return True
+
 
 class AsyncEvalManager:
     """Orchestrates asynchronous background evaluation runs with progress tracking."""
@@ -229,6 +241,53 @@ class AsyncEvalManager:
     def get_progress(self, job_id: str) -> Dict[str, Any]:
         """Return the current progress of a background job."""
         return self.jobs.get(job_id, {"job_id": job_id, "status": "not_found"})
+
+    def rerun_job(self, run_id: str) -> Dict[str, Any]:
+        """Extract configuration from a prior run and launch a new job with identical settings."""
+        report = self.store.get_run(run_id)
+        if not report:
+            raise ValueError(f"Run '{run_id}' not found.")
+
+        agent_info = report.agent_info or {}
+        dataset_info = report.dataset_info or {}
+        config = report.config
+
+        agent_name = agent_info.get("name", "") or agent_info.get("framework", "")
+        adapter_id = "example"
+        if "NativeFunctionCalling" in agent_name or "Native" in agent_name:
+            adapter_id = "native_function_calling"
+        elif "LangChain" in agent_name:
+            adapter_id = "langchain_agent"
+
+        provider = agent_info.get("provider", "openai")
+        model = agent_info.get("model", "gpt-4o-mini")
+        dataset_path = dataset_info.get("path", "evals/datasets")
+        concurrency = config.max_concurrency if config else 2
+        scorer_config = config.scorer_config if config else "composite"
+        judge_model = ""
+        if config and config.llm_judge_config:
+            j_prov = config.llm_judge_config.get("provider", provider)
+            j_mdl = config.llm_judge_config.get("model", model)
+            judge_model = f"{j_prov}:{j_mdl}"
+
+        job_id = self.start_job(
+            adapter_id=adapter_id,
+            provider=provider,
+            model=model,
+            dataset_path=dataset_path,
+            concurrency=concurrency,
+            scorer_config=scorer_config,
+            judge_model=judge_model,
+        )
+        return {
+            "job_id": job_id,
+            "adapter_id": adapter_id,
+            "provider": provider,
+            "model": model,
+            "dataset_path": dataset_path,
+            "scorer_config": scorer_config,
+            "judge_model": judge_model,
+        }
 
     def _run_job_thread(
         self,
@@ -308,6 +367,8 @@ class AsyncEvalManager:
 
         runner = EvalRunner(adapter, dataset, config)
         report: EvalRunReport = await runner.run(on_case_complete=handle_case_complete)
+        if report.dataset_info is not None and "path" not in report.dataset_info:
+            report.dataset_info["path"] = dataset_path
 
         # Update job stats from report
         self.jobs[job_id]["status"] = "completed"

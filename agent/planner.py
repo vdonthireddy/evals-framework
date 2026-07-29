@@ -71,6 +71,7 @@ class TaskPlanner:
         self._tools = {tool.name: tool for tool in tools}
         self._provider = provider
         self._model = model
+        self.last_tokens_used: int = 0
 
     def _build_tool_descriptions(self) -> str:
         """Format all tool schemas into a readable block for the system prompt."""
@@ -149,6 +150,7 @@ class TaskPlanner:
 
     async def _call_llm(self, messages: list[dict[str, Any]]) -> str:
         """Call the LLM provider and return the raw text response."""
+        self.last_tokens_used = 0
         if self._provider in ("openai", "ollama"):
             response = await self._llm_client.chat.completions.create(
                 model=self._model,
@@ -156,7 +158,14 @@ class TaskPlanner:
                 temperature=0.0,
                 max_tokens=1024,
             )
-            return response.choices[0].message.content or ""
+            content = response.choices[0].message.content or ""
+            usage = getattr(response, "usage", None)
+            if usage:
+                tot = getattr(usage, "total_tokens", 0) or (getattr(usage, "prompt_tokens", 0) + getattr(usage, "completion_tokens", 0))
+                self.last_tokens_used = tot or max(1, (sum(len(str(m.get("content", ""))) for m in messages) + len(content)) // 4)
+            else:
+                self.last_tokens_used = max(1, (sum(len(str(m.get("content", ""))) for m in messages) + len(content)) // 4)
+            return content
 
         elif self._provider == "anthropic":
             # Anthropic expects system prompt separately and only accepts 'user'/'assistant' roles
@@ -175,7 +184,15 @@ class TaskPlanner:
                 temperature=0.0,
                 max_tokens=1024,
             )
-            return response.content[0].text
+            text = response.content[0].text if response.content else ""
+            usage = getattr(response, "usage", None)
+            if usage:
+                input_t = getattr(usage, "input_tokens", 0) or 0
+                output_t = getattr(usage, "output_tokens", 0) or 0
+                self.last_tokens_used = (input_t + output_t) or max(1, (len(system_msg) + sum(len(str(m.get("content", ""))) for m in chat_messages) + len(text)) // 4)
+            else:
+                self.last_tokens_used = max(1, (len(system_msg) + sum(len(str(m.get("content", ""))) for m in chat_messages) + len(text)) // 4)
+            return text
 
         elif self._provider == "gemini":
             # Google GenAI
@@ -191,7 +208,13 @@ class TaskPlanner:
                     "max_output_tokens": 1024,
                 },
             )
-            return response.text or ""
+            content = response.text or ""
+            usage = getattr(response, "usage_metadata", None)
+            if usage:
+                self.last_tokens_used = getattr(usage, "total_token_count", 0) or max(1, (sum(len(str(m.get("content", ""))) for m in messages) + len(content)) // 4)
+            else:
+                self.last_tokens_used = max(1, (sum(len(str(m.get("content", ""))) for m in messages) + len(content)) // 4)
+            return content
 
         else:
             raise ValueError(f"Unsupported LLM provider: {self._provider}")

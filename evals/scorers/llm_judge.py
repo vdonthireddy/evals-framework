@@ -112,7 +112,7 @@ class LLMJudgeScorer(BaseScorer):
 
     async def _call_llm(self, messages: list[dict[str, Any]]) -> str:
         """Call the LLM provider and return the raw text response."""
-        if self.provider == "openai":
+        if self.provider in ("openai", "ollama"):
             response = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,

@@ -349,10 +349,13 @@
 
         .vega-chart-box {
             width: 100%;
-            min-height: 300px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            min-height: 250px;
+            display: block;
+            position: relative;
+        }
+
+        .vega-chart-box > div, .vega-chart-box .vega-embed {
+            width: 100% !important;
         }
 
         /* MODAL STYLING */
@@ -559,10 +562,19 @@
             </div>
 
             <div class="card">
-                <h3>Historical Evaluation Runs</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h3 style="margin-bottom: 0;">Historical Evaluation Runs</h3>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 0.25rem; margin-bottom: 0;">View, inspect, re-run, or bulk delete past evaluation runs.</p>
+                    </div>
+                    <button id="btn-delete-selected" onclick="deleteSelectedRuns()" class="nav-btn" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); display: none;">
+                        🗑️ Delete Selected (<span id="selected-runs-count">0</span>)
+                    </button>
+                </div>
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 36px; text-align: center;"><input type="checkbox" id="select-all-runs" onchange="toggleSelectAllRuns(this)" title="Select All Runs"></th>
                             <th>Run ID</th>
                             <th>Timestamp</th>
                             <th>Provider</th>
@@ -575,7 +587,7 @@
                         </tr>
                     </thead>
                     <tbody id="runs-table-body">
-                        <tr><td colspan="9">Loading runs...</td></tr>
+                        <tr><td colspan="10">Loading runs...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -589,12 +601,12 @@
                 <div style="display: flex; gap: 1.5rem; align-items: center;">
                     <div style="flex: 1;">
                         <label style="font-size: 0.8rem; color: var(--text-muted);">Baseline Run (Run A)</label>
-                        <select id="select-run-a" onchange="runRunComparison()"></select>
+                        <select id="select-run-a" onchange="renderRunVsRunComparison()"></select>
                     </div>
                     <div style="font-size: 1.2rem; font-weight: 700; color: var(--accent-purple); padding-top: 0.8rem;">VS</div>
                     <div style="flex: 1;">
                         <label style="font-size: 0.8rem; color: var(--text-muted);">Candidate Run (Run B)</label>
-                        <select id="select-run-b" onchange="runRunComparison()"></select>
+                        <select id="select-run-b" onchange="renderRunVsRunComparison()"></select>
                     </div>
                 </div>
             </div>
@@ -805,15 +817,16 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Model ID / Name</th>
-                                        <th>Display Label</th>
+                                        <th>Model ID</th>
+                                        <th>Display Name</th>
                                         <th>Provider</th>
                                         <th>Server Endpoint</th>
                                         <th>API Key Status</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="models-table-body">
-                                    <tr><td colspan="5">Loading models...</td></tr>
+                                    <tr><td colspan="6">Loading models...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -946,6 +959,40 @@
         let activeJobId = null;
         let progressInterval = null;
 
+        function startJobTracking(jobId) {
+            activeJobId = jobId;
+            const card = document.getElementById('eval-progress-card');
+            if (card) card.style.display = 'block';
+            const jobIdEl = document.getElementById('progress-job-id');
+            if (jobIdEl) jobIdEl.innerText = `Job: ${activeJobId}`;
+            const badge = document.getElementById('progress-status-badge');
+            if (badge) {
+                badge.innerText = 'Running';
+                badge.className = 'badge badge-purple';
+            }
+            const fill = document.getElementById('progress-bar-fill');
+            if (fill) fill.style.width = '0%';
+            const pct = document.getElementById('progress-percent');
+            if (pct) pct.innerText = '0%';
+            const count = document.getElementById('progress-cases-count');
+            if (count) count.innerText = '0 / 0';
+            const reportBtn = document.getElementById('progress-view-report');
+            if (reportBtn) reportBtn.style.display = 'none';
+
+            if (progressInterval) clearInterval(progressInterval);
+            progressInterval = setInterval(pollEvalProgress, 1000);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         async function fetchRuns() {
             try {
                 const res = await fetch('/api/runs');
@@ -1012,7 +1059,9 @@
         // -------------------------------------------------------------
         // TAB 2: RUN VS RUN COMPARISON
         // -------------------------------------------------------------
-        async function runRunComparison() {
+        let lastCompareData = null;
+
+        async function renderRunVsRunComparison() {
             const runA = document.getElementById('select-run-a').value;
             const runB = document.getElementById('select-run-b').value;
             if (!runA || !runB) return;
@@ -1022,6 +1071,7 @@
             try {
                 const res = await fetch(`/api/compare?run_a=${runA}&run_b=${runB}`);
                 const data = await res.json();
+                lastCompareData = data;
 
                 const pDelta = (data.deltas.pass_rate_delta * 100).toFixed(1);
                 document.getElementById('comp-pass-delta').innerText = (pDelta >= 0 ? '+' : '') + pDelta + '%';
@@ -1046,27 +1096,31 @@
                     $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
                     width: 'container',
                     height: 220,
+                    autosize: { type: 'fit', contains: 'padding' },
                     background: 'transparent',
                     data: { values: compChartData },
                     mark: { type: 'bar', cornerRadiusEnd: 6, tooltip: true },
                     encoding: {
-                        x: { field: 'metric', type: 'nominal', title: null, axis: { labelColor: '#94a3b8' } },
-                        y: { field: 'value', type: 'quantitative', title: 'Value', scale: { domain: [0, 100] }, axis: { labelColor: '#94a3b8' } },
-                        color: { field: 'run', type: 'nominal', title: 'Runs', scale: { range: ['#3b82f6', '#8b5cf6'] } },
+                        x: { field: 'metric', type: 'nominal', title: null, axis: { labelColor: '#94a3b8', labelFontSize: 12 } },
+                        y: { field: 'value', type: 'quantitative', title: 'Value', scale: { domain: [0, 100] }, axis: { labelColor: '#94a3b8', titleColor: '#94a3b8' } },
+                        color: { field: 'run', type: 'nominal', title: 'Evaluation Run', scale: { range: ['#3b82f6', '#8b5cf6'] }, legend: { orient: 'top', labelColor: '#94a3b8', titleColor: '#94a3b8' } },
                         xOffset: { field: 'run' }
                     },
                     config: { view: { stroke: 'transparent' }, axis: { domainColor: 'rgba(255,255,255,0.1)', gridColor: 'rgba(255,255,255,0.05)' } }
                 };
-                vegaEmbed('#vega-run-compare-bar', specComp, { actions: false });
+
+                requestAnimationFrame(() => {
+                    vegaEmbed('#vega-run-compare-bar', specComp, { actions: false });
+                });
 
                 const tbody = document.getElementById('run-compare-matrix-body');
-                tbody.innerHTML = data.cases.map(c => `
+                tbody.innerHTML = data.cases.map((c, idx) => `
                     <tr>
-                        <td><code>${c.case_id}</code></td>
+                        <td><code>${escapeHtml(c.case_id)}</code></td>
                         <td><span class="badge ${c.run_a.passed ? 'badge-success' : 'badge-error'}">${c.run_a.passed ? 'PASS' : 'FAIL'} (${c.run_a.score.toFixed(2)})</span></td>
                         <td><span class="badge ${c.run_b.passed ? 'badge-success' : 'badge-error'}">${c.run_b.passed ? 'PASS' : 'FAIL'} (${c.run_b.score.toFixed(2)})</span></td>
                         <td style="color: ${c.score_delta >= 0 ? 'var(--success)' : 'var(--error)'}; font-weight: 600;">${c.score_delta >= 0 ? '+' : ''}${c.score_delta.toFixed(2)}</td>
-                        <td><button class="nav-btn" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="alert('Prompt: ${c.input.replace(/'/g, "\\'")}\\n\\nRun A Output:\\n${c.run_a.output.replace(/'/g, "\\'")}\\n\\nRun B Output:\\n${c.run_b.output.replace(/'/g, "\\'")}')">Inspect Diff</button></td>
+                        <td><button class="nav-btn" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="inspectCompareDiff(${idx})">Inspect Diff</button></td>
                     </tr>
                 `).join('');
             } catch (err) {
@@ -1074,11 +1128,51 @@
             }
         }
 
+        function inspectCompareDiff(idx) {
+            if (!lastCompareData || !lastCompareData.cases || !lastCompareData.cases[idx]) return;
+            const c = lastCompareData.cases[idx];
+            const runAName = lastCompareData.run_a ? (lastCompareData.run_a.agent + ' (' + lastCompareData.run_a.model + ')') : 'Run A';
+            const runBName = lastCompareData.run_b ? (lastCompareData.run_b.agent + ' (' + lastCompareData.run_b.model + ')') : 'Run B';
+
+            const modalContent = document.getElementById('modal-content');
+            modalContent.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700;">Case Diff: <code style="color: var(--primary-light);">${escapeHtml(c.case_id)}</code></h2>
+                    <span style="font-weight: 700; color: ${c.score_delta >= 0 ? 'var(--success)' : 'var(--error)'}; font-size: 1rem; background: rgba(255,255,255,0.05); padding: 0.25rem 0.65rem; border-radius: 6px;">
+                        Score Delta: ${c.score_delta >= 0 ? '+' : ''}${c.score_delta.toFixed(2)}
+                    </span>
+                </div>
+
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Input Prompt</label>
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem; margin-top: 0.4rem; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.input || 'N/A')}</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #3b82f6;">Run A: ${escapeHtml(runAName)}</span>
+                            <span class="badge ${c.run_a.passed ? 'badge-success' : 'badge-error'}">${c.run_a.passed ? 'PASS' : 'FAIL'} (${c.run_a.score.toFixed(2)})</span>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem; font-family: monospace; font-size: 0.82rem; max-height: 280px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.run_a.output || 'No output')}</div>
+                    </div>
+
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #8b5cf6;">Run B: ${escapeHtml(runBName)}</span>
+                            <span class="badge ${c.run_b.passed ? 'badge-success' : 'badge-error'}">${c.run_b.passed ? 'PASS' : 'FAIL'} (${c.run_b.score.toFixed(2)})</span>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem; font-family: monospace; font-size: 0.82rem; max-height: 280px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.run_b.output || 'No output')}</div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('case-detail-modal').style.display = 'flex';
+        }
+
         // -------------------------------------------------------------
         // TAB 3: AGGREGATED MODEL COMPARISON (ACROSS ALL HISTORICAL RUNS)
         // -------------------------------------------------------------
-        let aggregatedModels = [];
-
         function renderAggregatedModelComparison() {
             const gridEl = document.getElementById('model-compare-checkbox-grid');
             if (!gridEl) return;
@@ -1270,6 +1364,10 @@
             if (typeof renderCompareCheckboxes === 'function') {
                 renderCompareCheckboxes();
             }
+
+            if (typeof renderRunVsRunComparison === 'function') {
+                renderRunVsRunComparison();
+            }
         }
 
         function renderHistoryTable() {
@@ -1292,6 +1390,9 @@
 
             tbody.innerHTML = cachedRuns.map(r => `
                 <tr class="clickable-row" onclick="selectRunAndInspect('${r.run_id}')">
+                    <td style="text-align: center;" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="run-select-checkbox" value="${r.run_id}" onchange="updateBulkDeleteButton()">
+                    </td>
                     <td><code>${r.run_id}</code></td>
                     <td>${new Date(r.timestamp).toLocaleString()}</td>
                     <td><span class="badge badge-purple">${r.provider}</span></td>
@@ -1301,10 +1402,274 @@
                     <td>${(r.average_score || 0).toFixed(3)}</td>
                     <td>${(r.avg_latency_ms || 0).toFixed(0)} ms</td>
                     <td>
+                        <button class="nav-btn" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); margin-right: 0.4rem;" onclick="event.stopPropagation(); cloneAndPrepareRerun('${r.run_id}')" title="Load configuration from this run into evaluation launcher">🔄 Re-run</button>
                         <button class="nav-btn" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3);" onclick="event.stopPropagation(); deleteRun('${r.run_id}')">🗑️ Delete</button>
                     </td>
                 </tr>
             `).join('');
+
+            updateBulkDeleteButton();
+        }
+
+        function toggleSelectAllRuns(masterCheckbox) {
+            const checkboxes = document.querySelectorAll('.run-select-checkbox');
+            checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+            updateBulkDeleteButton();
+        }
+
+        function updateBulkDeleteButton() {
+            const selected = document.querySelectorAll('.run-select-checkbox:checked');
+            const btn = document.getElementById('btn-delete-selected');
+            const countSpan = document.getElementById('selected-runs-count');
+            const masterCb = document.getElementById('select-all-runs');
+
+            if (countSpan) countSpan.innerText = selected.length;
+            if (btn) {
+                btn.style.display = selected.length > 0 ? 'inline-flex' : 'none';
+            }
+
+            const all = document.querySelectorAll('.run-select-checkbox');
+            if (masterCb && all.length > 0) {
+                masterCb.checked = (selected.length === all.length);
+            }
+        }
+
+        async function deleteSelectedRuns() {
+            const selected = Array.from(document.querySelectorAll('.run-select-checkbox:checked')).map(cb => cb.value);
+            if (selected.length === 0) return;
+
+            if (!confirm(`Are you sure you want to delete ${selected.length} selected evaluation run(s)?`)) return;
+
+            try {
+                const res = await fetch('/api/runs/delete-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ run_ids: selected })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fetchRuns();
+                } else {
+                    alert("Failed to delete selected runs: " + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert("Error deleting runs: " + err);
+            }
+        }
+
+        function populateAdminFormFromRun(data) {
+            if (!data) return;
+
+            // 1. Adapter Select
+            const adapterSelect = document.getElementById('admin-eval-adapter');
+            if (adapterSelect && data.adapter_id) {
+                adapterSelect.value = data.adapter_id;
+            }
+
+            // 2. Model Select
+            const modelSelect = document.getElementById('admin-eval-model');
+            if (modelSelect) {
+                const expectedVal = `${data.provider || 'openai'}:${data.model || ''}`;
+                let matched = false;
+                for (let opt of modelSelect.options) {
+                    if (opt.value === expectedVal || opt.value.endsWith(`:${data.model}`)) {
+                        modelSelect.value = opt.value;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched && data.model) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = expectedVal;
+                    newOpt.innerText = `${data.model} (${data.provider || 'custom'})`;
+                    modelSelect.appendChild(newOpt);
+                    modelSelect.value = expectedVal;
+                }
+            }
+
+            // 3. Dataset Select
+            const datasetSelect = document.getElementById('admin-eval-dataset');
+            if (datasetSelect && data.dataset_path) {
+                let matched = false;
+                for (let opt of datasetSelect.options) {
+                    if (opt.value === data.dataset_path || opt.value.endsWith(data.dataset_path)) {
+                        datasetSelect.value = opt.value;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = data.dataset_path;
+                    newOpt.innerText = data.dataset_path;
+                    datasetSelect.appendChild(newOpt);
+                    datasetSelect.value = data.dataset_path;
+                }
+            }
+
+            // 4. Scorer Select
+            const scorerSelect = document.getElementById('admin-eval-scorer');
+            if (scorerSelect && data.scorer_config) {
+                scorerSelect.value = data.scorer_config;
+                if (typeof toggleJudgeOptions === 'function') {
+                    toggleJudgeOptions();
+                }
+            }
+
+            // 5. Judge Model Select
+            const judgeSelect = document.getElementById('admin-judge-model');
+            if (judgeSelect && data.judge_model) {
+                judgeSelect.value = data.judge_model;
+            }
+        }
+
+        async function cloneAndPrepareRerun(runId) {
+            try {
+                // 1. Open Admin Studio Launch subtab first so showTab('admin') fires
+                if (typeof openAdminSubTab === 'function') {
+                    openAdminSubTab('launch');
+                }
+
+                // 2. Ensure all admin dropdown options finish loading/populating from server
+                if (typeof fetchAdminData === 'function') {
+                    await fetchAdminData();
+                }
+
+                // 3. Fetch full run report details
+                const res = await fetch(`/api/runs/${runId}`);
+                const report = await res.json();
+                if (!report || report.error) {
+                    alert(`Could not load configuration for run '${runId}': ${report ? report.error : 'Unknown error'}`);
+                    return;
+                }
+
+                const agentInfo = report.agent_info || {};
+                const datasetInfo = report.dataset_info || {};
+                const config = report.config || {};
+
+                // Determine Adapter ID
+                let adapterId = agentInfo.adapter_id || '';
+                if (!adapterId) {
+                    const name = agentInfo.name || agentInfo.framework || '';
+                    if (name.includes('NativeFunctionCalling') || name.includes('Native')) {
+                        adapterId = 'native_function_calling';
+                    } else if (name.includes('LangChain')) {
+                        adapterId = 'langchain_agent';
+                    } else {
+                        adapterId = 'example';
+                    }
+                }
+
+                const provider = agentInfo.provider || 'openai';
+                const model = agentInfo.model || 'gpt-4o-mini';
+                const datasetPath = datasetInfo.path || 'evals/datasets';
+                const scorerConfig = config.scorer_config || 'composite';
+
+                let judgeModel = '';
+                if (config.llm_judge_config) {
+                    const jProv = config.llm_judge_config.provider || provider;
+                    const jMdl = config.llm_judge_config.model || model;
+                    judgeModel = `${jProv}:${jMdl}`;
+                }
+
+                // 4. Set Adapter Select
+                const adapterSelect = document.getElementById('admin-eval-adapter');
+                if (adapterSelect) adapterSelect.value = adapterId;
+
+                // 5. Set Model Select
+                const modelSelect = document.getElementById('admin-eval-model');
+                if (modelSelect) {
+                    const targetVal = `${provider}:${model}`;
+                    let matched = false;
+                    for (let opt of modelSelect.options) {
+                        if (opt.value === targetVal || opt.value.endsWith(`:${model}`)) {
+                            modelSelect.value = opt.value;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched && model) {
+                        const opt = document.createElement('option');
+                        opt.value = targetVal;
+                        opt.innerText = `${model} (${provider})`;
+                        modelSelect.appendChild(opt);
+                        modelSelect.value = targetVal;
+                    }
+                }
+
+                // 6. Set Dataset Select
+                const datasetSelect = document.getElementById('admin-eval-dataset');
+                if (datasetSelect) {
+                    const resolvedPath = datasetInfo.path || datasetInfo.full_path || datasetInfo.name || (config && config.dataset_path) || '';
+                    const totalCases = datasetInfo.total_cases || (report.summary ? report.summary.total_cases : 0) || 0;
+
+                    let matched = false;
+                    if (resolvedPath) {
+                        for (let opt of datasetSelect.options) {
+                            if (opt.value === resolvedPath || opt.value.endsWith(resolvedPath) || resolvedPath.endsWith(opt.value)) {
+                                datasetSelect.value = opt.value;
+                                matched = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Fallback for legacy run reports missing path: match option label containing total_cases count
+                    if (!matched && totalCases > 0) {
+                        for (let opt of datasetSelect.options) {
+                            if (opt.text && opt.text.includes(`(${totalCases} cases)`)) {
+                                datasetSelect.value = opt.value;
+                                matched = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!matched && resolvedPath) {
+                        const opt = document.createElement('option');
+                        opt.value = resolvedPath;
+                        opt.innerText = resolvedPath;
+                        datasetSelect.appendChild(opt);
+                        datasetSelect.value = resolvedPath;
+                    }
+                }
+
+                // 7. Set Scorer Select & Toggle Judge Options
+                const scorerSelect = document.getElementById('admin-eval-scorer');
+                if (scorerSelect) {
+                    scorerSelect.value = scorerConfig;
+                    if (typeof toggleJudgeOptions === 'function') {
+                        toggleJudgeOptions();
+                    }
+                }
+
+                // 8. Set Judge Model Select
+                const judgeSelect = document.getElementById('admin-judge-model');
+                if (judgeSelect && judgeModel) {
+                    let matched = false;
+                    for (let opt of judgeSelect.options) {
+                        if (opt.value === judgeModel) {
+                            judgeSelect.value = opt.value;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched && judgeModel) {
+                        const opt = document.createElement('option');
+                        opt.value = judgeModel;
+                        opt.innerText = judgeModel;
+                        judgeSelect.appendChild(opt);
+                        judgeSelect.value = judgeModel;
+                    }
+                }
+
+                // 9. Scroll form smoothly into view
+                const formCard = document.querySelector('#admin-subtab-run-evals .card');
+                if (formCard) formCard.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                alert("Error preparing re-run configuration: " + err);
+            }
         }
 
         async function deleteRun(runId) {
@@ -1338,9 +1703,14 @@
 
                 const container = document.getElementById('run-detail-content');
                 container.innerHTML = `
-                    <div style="margin-bottom: 1rem;">
-                        <h2>Run ID: <code>${currentRunReport.run_id}</code></h2>
-                        <p style="color: var(--text-muted); margin-top: 0.25rem;">Provider: <strong>${currentRunReport.agent_info.provider}</strong> | Model: <strong>${currentRunReport.agent_info.model}</strong></p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div>
+                            <h2>Run ID: <code>${currentRunReport.run_id}</code></h2>
+                            <p style="color: var(--text-muted); margin-top: 0.25rem;">Provider: <strong>${currentRunReport.agent_info.provider}</strong> | Model: <strong>${currentRunReport.agent_info.model}</strong></p>
+                        </div>
+                        <button onclick="cloneAndPrepareRerun('${currentRunReport.run_id}')" class="nav-btn active" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: rgba(139, 92, 246, 0.25); border: 1px solid rgba(139, 92, 246, 0.4); color: #c4b5fd;">
+                            📋 Clone Config into Launcher
+                        </button>
                     </div>
 
                     <div class="grid-metrics">
@@ -1585,12 +1955,53 @@
             document.getElementById('case-detail-modal').style.display = 'none';
         }
 
+        let cachedModelsList = [];
+
         function openNewModelModal() {
+            const idInput = document.getElementById('modal-model-id');
+            const header = document.querySelector('#new-model-modal h2');
+            if (header && (!idInput || !idInput.value)) {
+                header.innerText = '🤖 Register New LLM Model';
+            }
             document.getElementById('new-model-modal').style.display = 'flex';
+        }
+
+        function editModelConfig(modelId) {
+            const m = cachedModelsList.find(x => x.id === modelId);
+            if (!m) return;
+
+            document.getElementById('modal-model-id').value = m.id || '';
+            document.getElementById('modal-model-name').value = m.name || '';
+            document.getElementById('modal-model-provider').value = m.provider || 'openai';
+            document.getElementById('modal-model-server').value = m.server_url || m.api_base || '';
+            document.getElementById('modal-model-key').value = m.api_key || '';
+
+            const header = document.querySelector('#new-model-modal h2');
+            if (header) header.innerText = '✏️ Edit LLM Model Configuration';
+
+            document.getElementById('new-model-modal').style.display = 'flex';
+        }
+
+        async function deleteModelConfig(modelId) {
+            if (!confirm(`Are you sure you want to delete model '${modelId}'?`)) return;
+
+            try {
+                const res = await fetch(`/api/admin/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    fetchAdminData();
+                } else {
+                    alert("Failed to delete model: " + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert("Error deleting model: " + err);
+            }
         }
 
         function closeModelModal() {
             document.getElementById('new-model-modal').style.display = 'none';
+            document.getElementById('modal-model-id').value = '';
+            document.getElementById('modal-model-name').value = '';
         }
 
         // Close active modals on Escape key press
@@ -1647,17 +2058,7 @@
                 });
                 const data = await res.json();
                 if (data.job_id) {
-                    activeJobId = data.job_id;
-                    document.getElementById('eval-progress-card').style.display = 'block';
-                    document.getElementById('progress-job-id').innerText = `Job: ${activeJobId}`;
-                    document.getElementById('progress-status-badge').innerText = 'Running';
-                    document.getElementById('progress-status-badge').className = 'badge badge-purple';
-                    document.getElementById('progress-bar-fill').style.width = '0%';
-                    document.getElementById('progress-percent').innerText = '0%';
-                    document.getElementById('progress-cases-count').innerText = '0 / 0';
-                    document.getElementById('progress-view-report').style.display = 'none';
-                    if (progressInterval) clearInterval(progressInterval);
-                    progressInterval = setInterval(pollEvalProgress, 1000);
+                    startJobTracking(data.job_id);
                 }
             } catch (err) {
                 alert("Failed to launch job: " + err);
@@ -1860,15 +2261,21 @@
                 // Render Models Table if present
                 const modelsTbody = document.getElementById('models-table-body');
                 if (modelsTbody && Array.isArray(modelsRes)) {
+                    cachedModelsList = modelsRes;
                     if (modelsRes.length === 0) {
-                        modelsTbody.innerHTML = '<tr><td colspan="4">No models configured.</td></tr>';
+                        modelsTbody.innerHTML = '<tr><td colspan="6">No models configured.</td></tr>';
                     } else {
                         modelsTbody.innerHTML = modelsRes.map(m => `
                             <tr>
-                                <td><strong>${m.name || m.model_name || m.id}</strong></td>
-                                <td><span class="badge badge-purple">${m.provider || 'ollama'}</span></td>
-                                <td><code>${m.server_url || m.api_base || 'http://localhost:11434'}</code></td>
-                                <td><span class="badge badge-success">Active</span></td>
+                                <td><code>${escapeHtml(m.id)}</code></td>
+                                <td><strong>${escapeHtml(m.name || m.id)}</strong></td>
+                                <td><span class="badge badge-purple">${escapeHtml(m.provider || 'ollama')}</span></td>
+                                <td><code>${escapeHtml(m.server_url || m.api_base || 'http://localhost:11434/v1')}</code></td>
+                                <td><span class="badge ${m.api_key ? 'badge-success' : 'badge-purple'}">${m.api_key ? 'Configured' : 'Local / None'}</span></td>
+                                <td>
+                                    <button class="nav-btn" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; margin-right: 0.3rem;" onclick="editModelConfig('${escapeHtml(m.id)}')">✏️ Edit</button>
+                                    <button class="nav-btn" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; background: rgba(239,68,68,0.2); color: #fca5a5; border-color: rgba(239,68,68,0.4);" onclick="deleteModelConfig('${escapeHtml(m.id)}')">🗑️ Delete</button>
+                                </td>
                             </tr>
                         `).join('');
                     }
