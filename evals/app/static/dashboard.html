@@ -485,6 +485,20 @@
             </div>
 
             <nav class="sidebar-nav">
+                <div class="nav-section-label">ADMINISTRATION</div>
+                <button class="nav-btn" onclick="openAdminSubTab('launch')">
+                    <span class="nav-icon">🚀</span> Launch New Evaluation
+                </button>
+                <button class="nav-btn" onclick="openAdminSubTab('models')">
+                    <span class="nav-icon">🤖</span> Model Registry & Keys
+                </button>
+                <button class="nav-btn" onclick="openAdminSubTab('adapters')">
+                    <span class="nav-icon">🔌</span> Agent Adapters
+                </button>
+                <button class="nav-btn" onclick="openAdminSubTab('datasets')">
+                    <span class="nav-icon">📁</span> Datasets & Test Cases
+                </button>
+
                 <div class="nav-section-label">ANALYTICS & REPORTS</div>
                 <button class="nav-btn active" onclick="showTab('history')">
                     <span class="nav-icon">📊</span> Run History & Visuals
@@ -498,17 +512,6 @@
                 <button class="nav-btn" onclick="showTab('details')">
                     <span class="nav-icon">🔍</span> Run Details
                 </button>
-
-                <div class="nav-section-label" style="margin-top: 1.25rem;">ADMINISTRATION</div>
-                <button class="nav-btn nav-btn-admin" onclick="showTab('admin')">
-                    <span class="nav-icon">⚙️</span> Admin Control Panel
-                </button>
-                <div class="sidebar-submenu">
-                    <div class="submenu-item" onclick="openAdminSubTab('launch')">🚀 Launch New Evaluation</div>
-                    <div class="submenu-item" onclick="openAdminSubTab('models')">🤖 Model Registry & Keys</div>
-                    <div class="submenu-item" onclick="openAdminSubTab('adapters')">🔌 Agent Adapters</div>
-                    <div class="submenu-item" onclick="openAdminSubTab('datasets')">📁 Datasets & Test Cases</div>
-                </div>
             </nav>
 
             <div class="sidebar-footer">
@@ -722,28 +725,9 @@
             </div>
         </div>
 
-        <!-- TAB 4: ADMIN CONTROL PANEL (SIDEBAR STUDIO LAYOUT) -->
+        <!-- TAB 4: ADMINISTRATION -->
         <div id="tab-admin" class="section-tab">
-            <div class="admin-studio-layout">
-                <!-- LEFT SIDEBAR SUB-MENU -->
-                <div class="admin-sidebar">
-                    <div class="admin-sidebar-header">ADMIN STUDIO</div>
-                    <button class="admin-sub-btn active" onclick="showAdminSubTab('run-evals')">
-                        <span>🚀</span> Run Evals
-                    </button>
-                    <button class="admin-sub-btn" onclick="showAdminSubTab('models')">
-                        <span>🤖</span> Models
-                    </button>
-                    <button class="admin-sub-btn" onclick="showAdminSubTab('adapters')">
-                        <span>🔌</span> Agent Adapters
-                    </button>
-                    <button class="admin-sub-btn" onclick="showAdminSubTab('datasets')">
-                        <span>📝</span> Datasets & Cases
-                    </button>
-                </div>
-
-                <!-- RIGHT MAIN PANEL VIEWS -->
-                <div class="admin-main-panel">
+            <div class="admin-main-panel">
 
                     <!-- SUB-TAB 1: RUN EVALS -->
                     <div id="admin-subtab-run-evals" class="admin-subtab active">
@@ -764,6 +748,22 @@
                             <div class="form-group">
                                 <label>Dataset Directory / Path</label>
                                 <select id="admin-eval-dataset"></select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Evaluation Scorer Strategy</label>
+                                <select id="admin-eval-scorer" onchange="toggleJudgeOptions()">
+                                    <option value="composite">Rule-Based & Safety Heuristics (Default)</option>
+                                    <option value="with_llm_judge">Deterministic + LLM-as-a-Judge (Hallucination & Quality Checks)</option>
+                                </select>
+                            </div>
+
+                            <div id="judge-model-group" class="form-group" style="display: none; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 10px; padding: 1rem;">
+                                <label style="color: #c4b5fd; font-weight: 600; margin-bottom: 0.35rem; display: block;">👨‍⚖️ Select LLM Evaluator / Judge Model</label>
+                                <select id="admin-judge-model"></select>
+                                <p style="color: var(--text-muted); font-size: 0.78rem; margin-top: 0.4rem; margin-bottom: 0;">
+                                    💡 <strong>Bias Mitigation Tip:</strong> Using a different model family for judging (e.g. Mistral or Claude) avoids self-preference bias.
+                                </p>
                             </div>
 
                             <button class="btn-primary" onclick="launchEvalJob()" style="width: 100%;">Launch Evaluation Job</button>
@@ -884,10 +884,8 @@
                             <button class="btn-primary" onclick="submitTestCase()" style="width: 100%;">Add Test Case to Dataset</button>
                         </div>
                     </div>
-
                 </div>
             </div>
-        </div>
     </main>
 </div>
 
@@ -1617,6 +1615,14 @@
             }
         }
 
+        function toggleJudgeOptions() {
+            const scorerSelect = document.getElementById('admin-eval-scorer');
+            const judgeGroup = document.getElementById('judge-model-group');
+            if (scorerSelect && judgeGroup) {
+                judgeGroup.style.display = (scorerSelect.value === 'with_llm_judge') ? 'block' : 'none';
+            }
+        }
+
         async function launchEvalJob() {
             const adapter_id = document.getElementById('admin-eval-adapter').value;
             const modelSelect = document.getElementById('admin-eval-model');
@@ -1629,13 +1635,15 @@
                 model = parts.slice(1).join(':');
             }
             const dataset_path = document.getElementById('admin-eval-dataset').value;
+            const scorer_config = document.getElementById('admin-eval-scorer') ? document.getElementById('admin-eval-scorer').value : 'composite';
+            const judge_model = document.getElementById('admin-judge-model') ? document.getElementById('admin-judge-model').value : '';
 
             const concurrency = (provider === 'ollama') ? 1 : 2;
             try {
                 const res = await fetch('/api/admin/evals/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ adapter_id, provider, model, dataset_path, concurrency })
+                    body: JSON.stringify({ adapter_id, provider, model, dataset_path, concurrency, scorer_config, judge_model })
                 });
                 const data = await res.json();
                 if (data.job_id) {
@@ -1792,6 +1800,11 @@
             showTab('admin');
             let targetId = subName;
             if (subName === 'launch' || subName === 'run-evals' || subName === 'eval') targetId = 'run-evals';
+            
+            document.querySelectorAll('.sidebar-nav .nav-btn').forEach(el => el.classList.remove('active'));
+            const sidebarBtn = document.querySelector(`.sidebar-nav .nav-btn[onclick*="'${subName}'"]`) || document.querySelector(`.sidebar-nav .nav-btn[onclick*="'${targetId}'"]`);
+            if (sidebarBtn) sidebarBtn.classList.add('active');
+
             const subBtn = document.querySelector(`.admin-sub-btn[onclick*="${targetId}"]`) || document.querySelector(`.admin-sub-btn[onclick*="${subName}"]`);
             showAdminSubTab(targetId, subBtn);
         }
@@ -1814,15 +1827,18 @@
                     }).join('');
                 }
 
-                // Populate Models Select
+                // Populate Models Selects
                 const modelSelect = document.getElementById('admin-eval-model');
-                if (modelSelect && Array.isArray(modelsRes)) {
-                    modelSelect.innerHTML = modelsRes.map(m => {
+                const judgeModelSelect = document.getElementById('admin-judge-model');
+                if (Array.isArray(modelsRes)) {
+                    const modelOpts = modelsRes.map(m => {
                         const modelId = m.id || m.model_name || m.name;
                         const val = `${m.provider || 'ollama'}:${modelId}`;
                         const label = `${m.name || modelId} (${m.provider || 'ollama'})`;
                         return `<option value="${val}">${label}</option>`;
                     }).join('');
+                    if (modelSelect) modelSelect.innerHTML = modelOpts;
+                    if (judgeModelSelect) judgeModelSelect.innerHTML = modelOpts;
                 }
 
                 // Populate Datasets Selects

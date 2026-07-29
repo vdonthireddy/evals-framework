@@ -169,6 +169,8 @@ class EvalReportHTTPRequestHandler(BaseHTTPRequestHandler):
             model = payload.get("model", "gpt-4o-mini")
             dataset_path = payload.get("dataset_path", "evals/datasets")
             concurrency = int(payload.get("concurrency", 2))
+            scorer_config = payload.get("scorer_config", "composite")
+            judge_model = payload.get("judge_model", "")
 
             if not self.eval_mgr:
                 self._send_json({"error": "Eval manager not initialized"}, status=500)
@@ -180,6 +182,8 @@ class EvalReportHTTPRequestHandler(BaseHTTPRequestHandler):
                 model=model,
                 dataset_path=dataset_path,
                 concurrency=concurrency,
+                scorer_config=scorer_config,
+                judge_model=judge_model,
             )
             self._send_json({"success": True, "job_id": job_id})
             return

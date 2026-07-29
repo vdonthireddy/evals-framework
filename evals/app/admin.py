@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from evals.adapters.example_agent_adapter import ExampleAgentAdapter
 from evals.adapters.langchain_adapter import LangChainAdapter
+from evals.adapters.native_agent_adapter import NativeFunctionCallingAdapter
 from evals.core.dataset import EvalDataset
 from evals.core.interfaces import AgentAdapter, EvalCase
 from evals.core.runner import EvalConfig, EvalRunner, EvalRunReport
@@ -70,6 +71,12 @@ class AdapterRegistry:
                 "description": "Default ReAct research assistant with search, calculator, weather, and KB tools.",
             },
             {
+                "id": "native_function_calling",
+                "name": "Native Function-Calling Agent (OpenAI/Ollama Tools)",
+                "class_name": "NativeFunctionCallingAdapter",
+                "description": "Zero-dependency agent using native OpenAI tools=[...] Function Calling API.",
+            },
+            {
                 "id": "langchain_agent",
                 "name": "LangChain Agent Executor",
                 "class_name": "LangChainAdapter",
@@ -116,7 +123,9 @@ class AdapterRegistry:
         api_key: str = "",
     ) -> AgentAdapter:
         """Instantiate an agent adapter by ID."""
-        if adapter_id == "example" or adapter_id == "ExampleAgentAdapter":
+        if adapter_id in ("native_function_calling", "NativeFunctionCallingAdapter"):
+            return NativeFunctionCallingAdapter(provider=provider, model=model, api_key=api_key)
+        elif adapter_id in ("example", "ExampleAgentAdapter"):
             return ExampleAgentAdapter(provider=provider, model=model, api_key=api_key)
         else:
             # Fallback to ExampleAgentAdapter for custom registrations
@@ -188,6 +197,8 @@ class AsyncEvalManager:
         model: str = "gpt-4o-mini",
         dataset_path: str = "evals/datasets",
         concurrency: int = 2,
+        scorer_config: str = "composite",
+        judge_model: str = "",
     ) -> str:
         """Launch an evaluation job in a background thread."""
         job_id = f"job-{str(uuid.uuid4())[:8]}"
@@ -198,6 +209,7 @@ class AsyncEvalManager:
             "provider": provider,
             "model": model,
             "dataset_path": dataset_path,
+            "scorer_config": scorer_config,
             "total_cases": 0,
             "completed_cases": 0,
             "passed_cases": 0,
@@ -208,7 +220,7 @@ class AsyncEvalManager:
 
         thread = threading.Thread(
             target=self._run_job_thread,
-            args=(job_id, adapter_id, provider, model, dataset_path, concurrency),
+            args=(job_id, adapter_id, provider, model, dataset_path, concurrency, scorer_config, judge_model),
             daemon=True,
         )
         thread.start()
@@ -226,12 +238,14 @@ class AsyncEvalManager:
         model: str,
         dataset_path: str,
         concurrency: int,
+        scorer_config: str,
+        judge_model: str,
     ) -> None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(
-                self._execute_eval(job_id, adapter_id, provider, model, dataset_path, concurrency)
+                self._execute_eval(job_id, adapter_id, provider, model, dataset_path, concurrency, scorer_config, judge_model)
             )
         except Exception as e:
             logger.error(f"Error in job {job_id}: {e}", exc_info=True)
@@ -248,6 +262,8 @@ class AsyncEvalManager:
         model: str,
         dataset_path: str,
         concurrency: int,
+        scorer_config: str,
+        judge_model: str,
     ) -> None:
         import os
         api_key = os.getenv("AGENT_API_KEY", "") or os.getenv("OPENAI_API_KEY", "") or "dummy-key"
@@ -257,11 +273,30 @@ class AsyncEvalManager:
         cases = list(dataset)
         self.jobs[job_id]["total_cases"] = len(cases)
 
+        llm_judge_config = None
+        if scorer_config == "with_llm_judge":
+            judge_prov = provider
+            judge_mdl = model
+            if judge_model and ":" in judge_model:
+                parts = judge_model.split(":")
+                judge_prov = parts[0]
+                judge_mdl = ":".join(parts[1:])
+            elif judge_model:
+                judge_mdl = judge_model
+
+            llm_judge_config = {
+                "provider": judge_prov,
+                "model": judge_mdl,
+                "api_key": api_key,
+            }
+
         config = EvalConfig(
             run_id=f"run-{job_id}",
             max_concurrency=concurrency,
-            timeout_seconds=180 if provider == "ollama" else 120,
+            timeout_seconds=180 if (provider == "ollama" or (llm_judge_config and llm_judge_config.get("provider") == "ollama")) else 120,
             output_dir="evals/results",
+            scorer_config=scorer_config,
+            llm_judge_config=llm_judge_config,
         )
 
         def handle_case_complete(res: Any, completed_count: int, total_count: int):

@@ -626,6 +626,34 @@ runner = EvalRunner(adapter=adapter, dataset=dataset, config=config)
 report = await runner.run()
 ```
 
+### ⚖️ Comparison: Example ReAct Multi-Tool Agent vs. LangChain Agent Executor
+
+| Comparison Dimension | **Example ReAct Multi-Tool Agent** (`ExampleAgentAdapter`) | **LangChain Agent Executor** (`LangChainAdapter`) |
+| :--- | :--- | :--- |
+| **Architecture** | Native, zero-dependency lightweight Python agent (`agent/app.py`, `agent/planner.py`). | Third-party framework agent using LangChain's `AgentExecutor` or `Runnable` ecosystem. |
+| **Control & Transparency** | Full control over internal loop, explicit step-by-step state machine (`TaskPlanner`), and built-in safety filter checks. | Black-box execution abstracted behind LangChain's `ainvoke()` / `invoke()` pipeline. |
+| **Trace Extraction** | Produces a native `AgentTrace` object directly capturing step numbers, actions, reasoning, tool args, tool results, tokens, and latency. | Parses LangChain's `intermediate_steps` tuples `(AgentAction, tool_output)` or callback streams into framework `TraceStep` objects. |
+| **State / Memory Management** | Uses custom `ConversationMemory` with `reset()` instantiating a clean agent instance per evaluation case. | Supports LangChain memory objects (`memory.clear()`) or a custom `reset_fn` lambda provided at initialization. |
+| **Dependencies & Overhead** | Zero framework overhead (uses raw LiteLLM / AsyncOpenAI API calls). Ideal for minimal latency. | Higher abstraction overhead with extensive ecosystem integration (tools, memory vector stores, agent types). |
+| **Role in Evals Framework** | Reference implementation demonstrating native end-to-end framework integration and custom agent benchmarking. | Demonstrates framework universality — showing how any external 3rd-party LangChain agent can be benchmarked without modifying its code. |
+
+---
+
+## Step 13c: Build a Native Function-Calling Agent & Adapter
+
+**Files**: [agent/native_agent.py](agent/native_agent.py) & [evals/adapters/native_agent_adapter.py](evals/adapters/native_agent_adapter.py)
+
+For high-performance benchmarking without heavy framework dependencies, `NativeFunctionCallingAgent` uses OpenAI/Ollama's native `tools=[...]` function calling API directly:
+
+```python
+from evals.adapters.native_agent_adapter import NativeFunctionCallingAdapter
+
+adapter = NativeFunctionCallingAdapter(
+    provider="openai",  # or "ollama"
+    model="gpt-4o-mini",
+)
+```
+
 ### 🔄 Generic LangChain Adapter Sequence Diagram
 
 This diagram shows how `LangChainAdapter` translates execution requests and intermediate steps between the Evals Framework and a LangChain `AgentExecutor` or `Runnable`:
@@ -948,6 +976,45 @@ Below is a complete reference of every class across Phase 1 and Phase 2, its fil
 | `SQLiteEvalStore` | [evals/store/sqlite_store.py](evals/store/sqlite_store.py) | Phase 2 (Store) | Concrete SQLite persistence store and model comparison engine. |
 | `EvalReportHTTPRequestHandler` | [evals/app/server.py](evals/app/server.py) | Phase 2 (App) | REST API and static asset HTTP server for reporting dashboard. |
 | `run_report_server` | [evals/app/server.py](evals/app/server.py) | Phase 2 (App) | Entrypoint launching the reporting web app server. |
+
+---
+
+## Step 28: Deep-Dive Technical FAQ
+
+### Q1: Does the framework support LLM-as-a-Judge evaluation, and how does it work?
+**Yes.** The framework includes dedicated LLM Judge scorers ([`evals/scorers/llm_judge.py`](evals/scorers/llm_judge.py)):
+- **`LLMJudgeScorer`**: Uses an evaluator LLM to grade agent outputs on a 1–5 scale across **Correctness**, **Helpfulness**, **Safety**, and **Efficiency** with position-bias mitigation.
+- **`GroundednessLLMScorer`**: Verifies whether claims in the final response are strictly grounded in retrieved tool evidence (detecting hallucinations).
+- **`CompositeScorer.with_llm_judge()`**: Combines deterministic rules (60% weight: tool selection, arguments, safety) with LLM judge evaluation (40% weight). You can select LLM-as-a-Judge when launching evaluation runs from the Admin Studio UI (`/admin`).
+
+### Q2: What are the main differences between the Agent architectures supported by the framework?
+The framework supports benchmarking three distinct agent paradigms:
+
+| Comparison Dimension | **Example ReAct Multi-Tool Agent** (`ExampleAgentAdapter`) | **Native Function-Calling Agent** (`NativeFunctionCallingAdapter`) | **LangChain Agent Executor** (`LangChainAdapter`) |
+| :--- | :--- | :--- | :--- |
+| **Architecture** | Custom Python agent using ReAct prompt planning (`TaskPlanner`). | Zero-dependency agent using native `tools=[...]` function-calling API. | 3rd-party framework agent (`AgentExecutor` or `Runnable`). |
+| **Control & Transparency** | Step-by-step state machine with active `SafetyFilter` checks. | Native function-calling loop with `SafetyFilter` validation. | Black-box execution inside LangChain's pipeline. |
+| **Tool Calling Method** | Embedded JSON strings parsed via regex/JSON loads. | Native OpenAI/Ollama `tool_calls` response headers. | LangChain output parser & native `tools` API bindings. |
+| **Trace Extraction** | Produces native `AgentTrace` objects directly. | Produces native `AgentTrace` objects directly. | Maps `intermediate_steps` tuples `(AgentAction, tool_output)`. |
+| **Framework Overhead** | Zero overhead (direct LiteLLM / AsyncOpenAI API calls). | Zero overhead (direct LiteLLM / AsyncOpenAI API calls). | Higher abstraction overhead with LangChain ecosystem components. |
+
+### Q3: Do different agent implementations send the exact same system and user prompts to the LLM?
+**No.** Prompt construction varies significantly:
+- **Example ReAct Agent**: Injects explicit text descriptions of tools and JSON output schemas directly into the system prompt.
+- **Native Function-Calling Agent**: Sends a concise persona prompt and attaches tool schemas separately in the API HTTP payload (`tools=[...]`).
+- **LangChain Agent Executor**: Formats prompts using LangChain's `ChatPromptTemplate` and `agent_scratchpad` placeholders.
+
+### Q4: Why does output quality and tool parameter precision (e.g. `{"location": "Tokyo"}` vs `{"location": "Tokyo, Japan"}`) differ across agents?
+Output formatting differs due to four technical factors:
+1. **Schema Declarations**: Rich Pydantic field descriptions (used by LangChain) encourage fully-qualified strings (`"Tokyo, Japan"`), while plain-text prompt docstrings encourage literal string extractions (`"Tokyo"`).
+2. **Model Invocation Pathway**: Fine-tuned native tool-calling weights generate different token sequences than general text-generation pathways.
+3. **Context Attention Weights**: Prompts with heavy JSON formatting instructions shift attention heads away from entity expansion.
+4. **Scorer Normalization**: The framework's **`ToolArgumentScorer`** ([evals/scorers/deterministic.py](evals/scorers/deterministic.py)) uses normalized substring matching and type coercion to ensure fair evaluations across agents.
+
+### Q5: Is Native Function-Calling different for different LLM models, and how does Ollama support it?
+**Yes.** Wire formats differ across providers (OpenAI `tool_calls`, Claude `tool_use`, Gemini `functionCall`). 
+- **Ollama is an inference runtime server**, not an LLM model.
+- Ollama enables tool calling by acting as a translation bridge: when a client calls its `/v1/chat/completions` endpoint with `tools=[...]`, Ollama automatically formats the tools into the specific model's Modelfile prompt template (e.g., `<|python_tag|>` for Llama 3.2 or `<tool_call>` for Qwen 2.5) and parses output tokens back into standard OpenAI JSON response headers.
 
 ---
 
